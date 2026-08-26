@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Going the Distance — Jomboy Media</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&family=Press+Start+2P&display=swap');
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  body{ font-family:'DM Sans',-apple-system,Arial,sans-serif; background:#0d1f2d; color:#eef4fa;
+        min-height:100vh; display:flex; align-items:center; justify-content:center; padding:40px 20px; }
+  .wrap{ max-width:860px; width:100%; }
+  .k{ font-family:'Press Start 2P',monospace; font-size:12px; letter-spacing:3px; color:#fbcc7a; }
+  h1{ font-family:'Bebas Neue',sans-serif; font-size:82px; letter-spacing:2px; line-height:.92; margin:14px 0 12px; }
+  h1 span{ color:#fbcc7a; }
+  p.lede{ color:#8fabc4; font-size:17px; line-height:1.65; max-width:650px; }
+  .cards{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:32px 0 24px; }
+  @media(max-width:680px){ .cards{ grid-template-columns:1fr; } h1{ font-size:56px; } }
+  a.card{ display:block; text-decoration:none; color:inherit; padding:22px 24px;
+          background:#11273a; border:1px solid #22415c; border-radius:14px;
+          transition:border-color 140ms ease, transform 80ms ease; }
+  a.card:hover{ border-color:#fbcc7a; transform:translateY(-2px); }
+  a.card .t{ font-family:'Bebas Neue',sans-serif; font-size:32px; letter-spacing:1px; color:#fbcc7a; line-height:1; }
+  a.card .d{ font-size:14px; color:#8fabc4; margin-top:7px; line-height:1.55; }
+  .games{ display:flex; flex-wrap:wrap; gap:8px; margin:22px 0 4px; }
+  .games span{ font-family:'Bebas Neue',sans-serif; font-size:17px; letter-spacing:1.4px;
+               background:#132c40; border:1px solid #22415c; border-radius:20px; padding:6px 15px; color:#cfe0ef; }
+  h2{ font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:4px; color:#fbcc7a;
+      margin:30px 0 10px; padding-top:20px; border-top:1px solid #22415c; }
+  ol{ color:#b8cddd; font-size:15px; line-height:1.9; padding-left:22px; }
+  ol b{ color:#eef4fa; }
+  code{ font-family:'DM Mono',monospace; font-size:13px; background:#0a1c2a; border:1px solid #22415c;
+        border-radius:4px; padding:1px 6px; color:#cfe0ef; }
+  .foot{ margin-top:28px; font-size:13px; color:#5d7891; line-height:1.7; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="k">JOMBOY MEDIA</div>
+  <h1>GOING THE <span>DISTANCE</span></h1>
+  <p class="lede">
+    An NFL trivia drive. You start on your own 1 and answer your way to the end zone — and how
+    fast you answer decides what the play is. Fire back instantly and you take the top off it.
+    Sit on it and you scramble for two. Miss it and you're eating a sack.
+  </p>
+
+  <div class="games">
+    <span>The Drive</span><span>Head to Head</span><span>16:9 Lower Third</span>
+    <span>9:16 for Shorts</span><span>Full-screen Board</span>
+  </div>
+
+  <div class="cards">
+    <a class="card" href="control.html">
+      <div class="t">CONTROL →</div>
+      <div class="d">The host panel. Serve the questions, lock the answers, run the plays,
+        spend the lifelines, kick the field goal. Keep this one off camera.</div>
+    </a>
+    <a class="card" href="display.html">
+      <div class="t">DISPLAY →</div>
+      <div class="d">The 8-bit field. Point an OBS browser source at this with the topic in the
+        URL. Transparent background, so it drops straight over the shot.</div>
+    </a>
+  </div>
+
+  <h2>RUNNING IT</h2>
+  <ol>
+    <li>Open <b>Control</b>, pick a topic name, hit <b>Connect</b>.</li>
+    <li><b>Copy Display URL</b> and paste it into an OBS browser source —
+      <code>1920 × 1080</code> for the lower third, <code>1080 × 1920</code> for the vertical cut.</li>
+    <li>Hit <b>N</b> to serve a question, read it out, click the answer they gave,
+      then <b>Enter</b> to reveal and run the play.</li>
+    <li>Drop your own audio clips on the control page and they replace the built-in stingers.</li>
+  </ol>
+
+  <div class="foot">
+    Built for Talkin' Baseball's football cousin. Both pages talk over a public ntfy topic, so the
+    laptop running the show and the machine running OBS never have to be on the same network.
+  </div>
+</div>
+</body>
+</html>

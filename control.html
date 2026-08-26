@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Going the Distance — Control</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&family=Press+Start+2P&display=swap');
+:root{
+  --navy:#0d1f2d; --panel:#11273a; --panel2:#0f2233; --edge:#22415c;
+  --gold:#fbcc7a; --ink:#eef4fa; --dim:#8fabc4;
+  --green:#3fbf6f; --red:#e2453c; --blue:#4fa8ff;
+}
+*{ margin:0; padding:0; box-sizing:border-box; }
+body{ font-family:'DM Sans',-apple-system,Arial,sans-serif; background:var(--navy); color:var(--ink); font-size:14px; }
+.wrap{ display:grid; grid-template-columns:minmax(0,1fr) 520px; gap:18px; padding:18px; max-width:1740px; margin:0 auto; align-items:start; }
+@media(max-width:1240px){ .wrap{ grid-template-columns:1fr; } }
+
+h1{ font-family:'Bebas Neue',sans-serif; font-size:44px; letter-spacing:1px; line-height:.95; }
+h1 span{ color:var(--gold); }
+.kick{ font-family:'Press Start 2P',monospace; font-size:11px; color:var(--gold); letter-spacing:2px; }
+header{ grid-column:1/-1; display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap; }
+header .note{ color:var(--dim); font-size:13px; max-width:640px; line-height:1.55; }
+
+section{ background:var(--panel); border:1px solid var(--edge); border-radius:12px; padding:16px 18px; margin-bottom:14px; }
+h2{ font-family:'Bebas Neue',sans-serif; font-size:16px; letter-spacing:3px; color:var(--gold);
+    display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+h2 .n{ font-family:'DM Mono',monospace; font-size:11px; background:#193249; color:var(--gold);
+       border:1px solid var(--edge); border-radius:4px; padding:2px 7px; letter-spacing:0; }
+h2 .note{ font-family:'DM Sans',sans-serif; font-size:12px; letter-spacing:0; color:var(--dim); text-transform:none; font-weight:400; }
+
+.row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:9px; }
+.row:last-child{ margin-bottom:0; }
+.grow{ flex:1; min-width:120px; }
+label.f{ display:flex; flex-direction:column; gap:4px; font-size:11px; color:var(--dim);
+         font-family:'DM Mono',monospace; letter-spacing:.4px; }
+
+input[type=text], input[type=number], select, textarea{
+  background:var(--panel2); border:1px solid var(--edge); color:var(--ink);
+  border-radius:7px; padding:8px 10px; font-family:'DM Sans',sans-serif; font-size:14px; width:100%;
+}
+textarea{ font-family:'DM Mono',monospace; font-size:12px; line-height:1.6; resize:vertical; }
+input[type=color]{ background:none; border:1px solid var(--edge); border-radius:7px; width:44px; height:34px; padding:2px; }
+input:focus, select:focus, textarea:focus{ outline:none; border-color:var(--gold); }
+
+button{
+  background:#183149; border:1px solid var(--edge); color:var(--ink); cursor:pointer;
+  border-radius:8px; padding:9px 14px; font-family:'DM Sans',sans-serif; font-size:13px; font-weight:500;
+  transition:border-color 120ms ease, background 120ms ease;
+}
+button:hover:not(:disabled){ border-color:var(--gold); }
+button:disabled{ opacity:.35; cursor:default; }
+button.gold{ background:var(--gold); color:#0d1f2d; border-color:var(--gold); font-weight:700; }
+button.big{ font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:1.5px; padding:12px 20px; }
+button.bad{ border-color:rgba(226,69,60,.6); color:#ff9a92; }
+button.good{ border-color:rgba(63,191,111,.6); color:#8ff0b4; }
+button.on{ background:var(--gold); color:#0d1f2d; border-color:var(--gold); }
+button kbd{ font-family:'DM Mono',monospace; font-size:10px; opacity:.65; margin-left:7px;
+            border:1px solid currentColor; border-radius:3px; padding:0 4px; }
+
+.hint{ font-size:12px; color:var(--dim); line-height:1.6; }
+.hint.warn{ color:#ff9a92; }
+.mono{ font-family:'DM Mono',monospace; font-size:11px; color:var(--dim); }
+.warn{ color:#ff9a92; }
+.ok{ color:var(--green); }
+
+/* relays */
+.relay{ display:flex; align-items:center; gap:6px; border:1px solid var(--edge); border-radius:16px;
+        padding:4px 10px 4px 6px; font-size:12px; background:var(--panel2); }
+.relay .rl{ font-weight:700; color:#cfe0ef; }
+.relay .rs{ color:var(--dim); font-family:'DM Mono',monospace; font-size:11px; }
+.relay.ok{ border-color:rgba(63,191,111,.6); }   .relay.ok .rs{ color:var(--green); }
+.relay.busy{ border-color:rgba(251,204,122,.7); } .relay.busy .rs{ color:var(--gold); }
+.relay.down{ border-color:rgba(226,69,60,.7); }   .relay.down .rs{ color:#ff8b82; }
+.relay.off{ opacity:.45; }
+
+/* mode tabs */
+#modeTabs{ display:flex; gap:8px; margin-bottom:14px; }
+.mtab{ flex:1; text-align:center; cursor:pointer; padding:12px 10px; border:1px solid var(--edge);
+       border-radius:10px; background:var(--panel2); }
+.mtab .t{ font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:1px; color:var(--ink); line-height:1; }
+.mtab .d{ font-size:11px; color:var(--dim); margin-top:5px; line-height:1.4; }
+.mtab.on{ border-color:var(--gold); background:#16324a; }
+.mtab.on .t{ color:var(--gold); }
+.mpanel{ display:none; } .mpanel.on{ display:block; }
+
+/* the situation strip */
+#sitrep{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+.sit{ flex:1; min-width:96px; background:#0a1c2a; border:1px solid var(--edge); border-radius:10px; padding:10px 12px; }
+.sit .k{ font-family:'DM Mono',monospace; font-size:10px; color:var(--dim); letter-spacing:.6px; }
+.sit .v{ font-family:'Bebas Neue',sans-serif; font-size:30px; line-height:1.05; letter-spacing:1px; }
+.sit .v.gold{ color:var(--gold); } .sit .v.green{ color:var(--green); } .sit .v.red{ color:#ff9a92; }
+
+/* the question runner */
+#qbox{ background:#0a1c2a; border:1px solid var(--edge); border-radius:10px; padding:14px; }
+#qtextC{ font-family:'Bebas Neue',sans-serif; font-size:28px; line-height:1.05; letter-spacing:.6px; margin-bottom:12px; }
+#qtextC.empty{ color:var(--dim); font-family:'DM Sans',sans-serif; font-size:14px; letter-spacing:0; }
+.copts{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.copt{ display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--edge);
+       border-radius:8px; background:var(--panel2); cursor:pointer; text-align:left; }
+.copt:hover{ border-color:var(--gold); }
+.copt .k{ font-family:'Press Start 2P',monospace; font-size:12px; color:var(--gold); }
+.copt .t{ font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:.5px; }
+.copt.right{ border-color:var(--green); }
+.copt.lock{ background:#3a2c0e; border-color:var(--gold); }
+.copt.gone{ opacity:.3; }
+.copt .tag{ margin-left:auto; font-family:'DM Mono',monospace; font-size:10px; color:var(--green); }
+
+#clockRead{ font-family:'Press Start 2P',monospace; font-size:26px; color:var(--gold); }
+#bandRead{ font-family:'DM Mono',monospace; font-size:12px; color:var(--dim); }
+#meterWrap{ height:10px; background:#0a1c2a; border:1px solid var(--edge); border-radius:5px; overflow:hidden; margin:8px 0 4px; }
+#meterFill{ height:100%; background:var(--green); width:100%; }
+
+#log{ max-height:230px; overflow:auto; font-family:'DM Mono',monospace; font-size:11.5px; line-height:1.75; color:#b8cddd; }
+#log b{ color:var(--gold); } #log .bad{ color:#ff8b82; } #log .good{ color:#8ff0b4; }
+
+#previewFrame{ width:100%; aspect-ratio:16/9; border:1px solid var(--edge); border-radius:10px; background:#000; display:block; }
+#previewFrame.vert{ aspect-ratio:9/16; max-height:70vh; margin:0 auto; }
+#previewPlaceholder{ aspect-ratio:16/9; border:1px dashed var(--edge); border-radius:10px;
+  display:flex; align-items:center; justify-content:center; color:var(--dim); font-size:13px; text-align:center; padding:20px; }
+
+#dropzone{ border:2px dashed var(--edge); border-radius:10px; padding:16px; text-align:center; color:var(--dim); font-size:13px; }
+#dropzone.hot{ border-color:var(--gold); color:var(--gold); }
+.cuegrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:7px; margin-top:10px; }
+.cue{ display:flex; align-items:center; gap:7px; border:1px solid var(--edge); border-radius:7px; padding:6px 9px; background:var(--panel2); font-size:12px; }
+.cue.has{ border-color:rgba(63,191,111,.55); }
+.cue .nm{ font-family:'DM Mono',monospace; font-size:11px; flex:1; }
+.cue button{ padding:2px 6px; font-size:11px; border-radius:4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div>
+    <div class="kick">JOMBOY MEDIA</div>
+    <h1>GOING THE <span>DISTANCE</span></h1>
+    <p class="note">Start on your own 1 and answer your way to the end zone. The faster the
+      answer, the bigger the play. Miss and you take a sack, an incomplete or worse.</p>
+  </div>
+  <div class="hint" id="hotkeyHint" style="text-align:right">
+    <b style="color:var(--gold)">HOTKEYS</b><br>
+    N next question · A/B/C/D lock · Enter reveal · Space clock<br>
+    T time expired · P 50/50 · O timeout · C challenge · K kick · R redo
+  </div>
+</header>
+
+<div>
+  <section>
+    <h2><span class="n">1</span> Connection <span class="note">the overlay listens on an ntfy topic — same as the trade deadline pages</span></h2>
+    <div class="row">
+      <input type="text" id="topicInput" class="grow" placeholder="ntfy topic (e.g. jomboy-gtd-7k3x9)">
+      <button id="connectBtn" class="gold">Connect</button>
+      <span id="connStatus" class="mono">not connected</span>
+    </div>
+    <div class="row">
+      <button id="copyDisplayBtn" disabled>Copy Display URL</button>
+      <select id="layoutPick" style="width:auto">
+        <option value="lower">Lower third (16:9)</option>
+        <option value="full">Full screen board (16:9)</option>
+        <option value="vert">Vertical (9:16 — Shorts / Reels)</option>
+      </select>
+      <button id="resyncBtn">Resync</button>
+      <button id="snapBtn">Snapshot URL</button>
+      <span id="reqMeter" class="hint">0 sent</span>
+    </div>
+    <div class="row" id="relayRow" style="gap:6px;"></div>
+    <div class="hint" id="saveHint">Every message goes to all the ticked relays at once and the overlay
+      takes whichever copy lands first, so one server having a bad day costs nothing.</div>
+  </section>
+
+  <section>
+    <h2><span class="n">2</span> Game</h2>
+    <div id="modeTabs">
+      <div class="mtab on" data-m="drive">
+        <div class="t">GOING THE DISTANCE</div>
+        <div class="d">Own 1 to the end zone. Speed sets the play.</div>
+      </div>
+      <div class="mtab" data-m="h2h">
+        <div class="t">HEAD TO HEAD</div>
+        <div class="d">Start at the 50. Five yards a question, turnover if you miss.</div>
+      </div>
+    </div>
+
+    <div id="sitrep"></div>
+
+    <div id="qbox">
+      <div class="row" style="justify-content:space-between">
+        <div class="row" style="margin:0">
+          <button id="nextQ" class="gold big">SERVE QUESTION<kbd>N</kbd></button>
+          <button id="startClock">Start clock<kbd>space</kbd></button>
+          <button id="clearQ">Clear</button>
+        </div>
+        <div style="text-align:right">
+          <div id="clockRead">--.-</div>
+          <div id="bandRead">no question up</div>
+        </div>
+      </div>
+      <div id="meterWrap"><div id="meterFill"></div></div>
+      <div id="qtextC" class="empty">Nothing up yet. Hit SERVE QUESTION and read it out — the
+        overlay puts the question and the four answers on screen and starts the clock.</div>
+      <div class="copts" id="coptsC"></div>
+      <div class="row" style="margin-top:12px">
+        <button id="revealBtn" class="gold big" disabled>REVEAL &amp; RUN THE PLAY<kbd>enter</kbd></button>
+        <button id="timeUp" disabled>Time expired<kbd>T</kbd></button>
+        <button id="redoBtn">Redo last play<kbd>R</kbd></button>
+      </div>
+    </div>
+  </section>
+
+  <section class="mpanel on" id="p-drive">
+    <h2><span class="n">3</span> The drive <span class="note">everything here also happens automatically — these are the overrides</span></h2>
+    <div class="row">
+      <button id="llPI">Pass interference — 50/50<kbd>P</kbd></button>
+      <button id="llTO">Timeout — +15 seconds<kbd>O</kbd></button>
+      <button id="llCC">Coach's challenge — ask the room<kbd>C</kbd></button>
+    </div>
+    <div class="row">
+      <button id="kickBtn" class="good">Take the field goal<kbd>K</kbd></button>
+      <span id="fgHint" class="hint"></span>
+    </div>
+    <div class="row">
+      <span class="mono">FORCE A RESULT</span>
+      <button id="fInt" class="bad">Interception</button>
+      <button id="fFum" class="bad">Fumble</button>
+      <button id="fFlag" class="bad">Penalty −10</button>
+      <button id="fFree" class="good">Free play +5</button>
+      <button id="fHouse" class="good">To the house</button>
+    </div>
+    <div class="row">
+      <label class="f" style="width:96px">SPOT THE BALL
+        <input type="number" id="setLos" min="1" max="99" step="1"></label>
+      <label class="f" style="width:80px">DOWN
+        <input type="number" id="setDown" min="1" max="4" step="1"></label>
+      <label class="f" style="width:80px">TO GO
+        <input type="number" id="setDist" min="1" max="99" step="1"></label>
+      <label class="f" style="width:90px">POINTS
+        <input type="number" id="setScore" min="0" step="1"></label>
+      <button id="applySit">Apply</button>
+      <button id="newDrive">New drive from the 1</button>
+    </div>
+    <div class="hint">Safe havens at the <b>25</b>, the <b>50</b> and the <b>opponent 20</b> — the Millionaire
+      guarantee. Turn it over on downs and the next drive starts from the last one you got past, not
+      back at the goal line.</div>
+  </section>
+
+  <section class="mpanel" id="p-h2h">
+    <h2><span class="n">3</span> Head to head</h2>
+    <div class="row">
+      <label class="f grow">TEAM 1 <input type="text" id="t1name" value="JAKE"></label>
+      <input type="color" id="t1col" value="#1b3a5c">
+      <label class="f" style="width:90px">POINTS <input type="number" id="t1score" value="0" min="0"></label>
+      <label class="f grow">TEAM 2 <input type="text" id="t2name" value="TREV"></label>
+      <input type="color" id="t2col" value="#7c1d2b">
+      <label class="f" style="width:90px">POINTS <input type="number" id="t2score" value="0" min="0"></label>
+      <button id="applyTeams">Apply</button>
+    </div>
+    <div class="row">
+      <button id="poss0">Ball to team 1<kbd>1</kbd></button>
+      <button id="poss1">Ball to team 2<kbd>2</kbd></button>
+      <button id="h2hReset">Reset to the 50</button>
+      <label class="f" style="width:110px">YARDS / ANSWER
+        <input type="number" id="h2hStep" value="5" min="1" max="25"></label>
+      <label class="row" style="gap:6px;margin:0;font-size:12px;color:var(--dim)">
+        <input type="checkbox" id="h2hBonus"> double it under 5 seconds
+      </label>
+    </div>
+    <div class="hint">Right answer moves the ball your way and you keep it. Wrong answer is a turnover
+      on the spot and the other side takes over driving the other way. Reach the end zone for 7 and
+      it goes back to the 50.</div>
+  </section>
+
+  <section>
+    <h2><span class="n">4</span> Look <span class="note">what the overlay shows</span></h2>
+    <div class="row">
+      <label class="row" style="gap:6px;margin:0"><input type="checkbox" id="showQ" checked> question card on the overlay</label>
+      <label class="row" style="gap:6px;margin:0"><input type="checkbox" id="showClock" checked> clock bar</label>
+      <label class="row" style="gap:6px;margin:0"><input type="checkbox" id="showPlate"> title plate</label>
+    </div>
+    <div class="row">
+      <label class="f grow">BANNER <input type="text" id="bannerText" placeholder="leave empty for none"></label>
+      <button id="bannerOn">Show</button><button id="bannerOff">Hide</button>
+    </div>
+    <div class="row">
+      <label class="f">OFFENSE <input type="color" id="offCol" value="#1b3a5c"></label>
+      <label class="f">TRIM <input type="color" id="offTrim" value="#fbcc7a"></label>
+      <label class="f">DEFENSE <input type="color" id="defCol" value="#7c1d2b"></label>
+      <label class="f">SKIN <input type="color" id="skinCol" value="#b07a52"></label>
+      <label class="f" style="width:120px">CLOCK (SECONDS)
+        <input type="number" id="clockDur" value="20" min="5" max="90"></label>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">5</span> Sound <span class="note">drop your own clips — filenames pick the cue</span></h2>
+    <div id="dropzone">
+      Drop audio files here. <b>touchdown.mp3</b>, <b>sack.wav</b>, <b>big-play.m4a</b>, <b>riff.mp3</b>…
+      anything not supplied falls back to a built-in chiptune sting.
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label class="row" style="gap:6px;margin:0"><input type="checkbox" id="muteBox"> mute</label>
+      <span class="hint">The control page plays these out of this machine. Tick <b>sound</b> on the
+        display URL if you would rather the OBS source make the noise.</span>
+    </div>
+    <div class="cuegrid" id="cueGrid"></div>
+  </section>
+
+  <section>
+    <h2><span class="n">6</span> Questions <span class="note" id="poolNote"></span></h2>
+    <div class="row">
+      <button id="bankReset">Reset used questions</button>
+      <button id="bankToggle">Show the paste box</button>
+      <span class="hint" id="bankHint"></span>
+    </div>
+    <div id="bankBox" style="display:none">
+      <p class="hint" style="margin-bottom:8px">One a line, pipes between:
+        <span class="mono">question | right answer | wrong | wrong | wrong | tier</span> —
+        tier 1 plays early in the drive, 3 in the red zone. Leave the tier off and it lands in 2.</p>
+      <textarea id="bankText" rows="8" placeholder="Which team drafted Tom Brady?|Patriots|49ers|Browns|Jets|1"></textarea>
+      <div class="row" style="margin-top:8px">
+        <button id="bankLoad" class="gold">Load these</button>
+        <button id="bankClear">Back to the built-in bank</button>
+        <span class="hint" id="bankResult"></span>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div>
+  <section>
+    <h2><span class="n">7</span> Preview</h2>
+    <iframe id="previewFrame" src="about:blank"></iframe>
+    <div id="previewPlaceholder">Connect to a topic and the live overlay shows up here.</div>
+    <div class="row" style="margin-top:10px">
+      <button id="refreshPreviewBtn">Reload preview</button>
+      <span class="hint">This is the real display page, driven locally — it costs no messages.</span>
+    </div>
+  </section>
+  <section>
+    <h2><span class="n">8</span> Play by play</h2>
+    <div id="log"></div>
+  </section>
+</div>
+
+</div>
+
+<script src="gtd.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const el = (cls, txt) => { const d = document.createElement('div'); if(cls) d.className = cls; if(txt != null) d.textContent = txt; return d; };
+let TOPIC = localStorage.getItem('gtd_topic') || '';
+$('topicInput').value = TOPIC;
+
+let BC = null;
+try{ BC = new BroadcastChannel('going_the_distance'); }catch(e){}
+
+/* =====================================================================
+   STATE
+   ===================================================================== */
+const S = {
+  mode:'drive', layout:'lower',
+  showQ:true, showClock:true, showPlate:false,
+  banner:{ on:false, text:'', bad:false },
+  plate:{ kick:'JOMBOY MEDIA', name:'GOING THE\nDISTANCE', sub:'' },
+  pal:{ offP:'#1b3a5c', offT:'#fbcc7a', defP:'#7c1d2b', defT:'#e8eef4', skin:'#b07a52' },
+  clockDur:20,
+  q:null, qnum:0, used:{},
+  drive:{ los:1, down:1, dist:10, first:11, score:0, ll:{ pi:true, to:true, cc:true }, safe:1, marks:[25, 50, 80] },
+  h2h:{ ball:50, poss:0, step:5, bonus:false, target:55,
+        teams:[{ name:'JAKE', color:'#1b3a5c', score:0 }, { name:'TREV', color:'#7c1d2b', score:0 }] },
+  play:null, playId:0, cue:null, cueId:0,
+  clock:{ on:false, run:false, seq:0, t0:0, elapsed:0 },
+  lastSnapshot:null, needNewDrive:false
+};
+
+function logLine(html, cls){
+  const d = document.createElement('div');
+  if(cls) d.className = cls;
+  d.innerHTML = html;
+  $('log').prepend(d);
+  while($('log').children.length > 120) $('log').lastChild.remove();
+}
+
+/* =====================================================================
+   CLOCK
+
+   The authoritative timing lives here, not on the overlay: the host stops
+   it by clicking the answer the contestant actually gave, so nothing
+   depends on two machines agreeing what time it is.
+   ===================================================================== */
+function startClock(){
+  S.clock.run = true; S.clock.t0 = performance.now(); S.clock.elapsed = 0; S.clock.seq++;
+  publish(true);
+}
+function stopClock(){
+  if(!S.clock.run) return;
+  S.clock.elapsed = Math.min(S.clockDur, (performance.now() - S.clock.t0) / 1000);
+  S.clock.run = false;
+}
+function clockElapsed(){
+  return S.clock.run ? Math.min(S.clockDur, (performance.now() - S.clock.t0) / 1000) : S.clock.elapsed;
+}
+setInterval(() => {
+  const e = clockElapsed();
+  const left = Math.max(0, S.clockDur - e);
+  $('clockRead').textContent = S.q ? left.toFixed(1) : '--.-';
+  $('clockRead').style.color = left < S.clockDur * 0.22 ? '#ff8b82' : left < S.clockDur * 0.5 ? '#fbcc7a' : '#8ff0b4';
+  $('meterFill').style.width = (S.q ? (left / S.clockDur) * 100 : 0) + '%';
+  $('meterFill').style.background = left < S.clockDur * 0.22 ? '#e2453c' : left < S.clockDur * 0.5 ? '#fbcc7a' : '#3fbf6f';
+  if(S.q && !S.q.reveal){
+    const frac = e / S.clockDur;
+    const band = GTD.BANDS.find(b => frac <= b.max) || GTD.BANDS[GTD.BANDS.length - 1];
+    const miss = GTD.MISS.find(b => frac <= b.max) || GTD.MISS[GTD.MISS.length - 1];
+    $('bandRead').textContent = 'right now: ' + band.label + ' (' + band.lo + '–' + band.hi + ')  ·  miss: ' + miss.label;
+  }
+}, 90);
+
+/* =====================================================================
+   SERVING A QUESTION
+   ===================================================================== */
+function serve(){
+  if(S.mode === 'drive' && (S.needNewDrive || S.drive.los >= 100)) newDrive(true);
+  const tier = S.mode === 'drive' ? GTD.tierFor(S.drive.los) : 2;
+  const q = GTD.draw(tier, S.used);
+  if(!q){ logLine('<span class="bad">the bank is empty — reset used questions</span>'); return; }
+  S.used[q.id] = 1;
+  S.q = { id:q.id, tier:q.tier, text:q.text, choices:q.choices, correct:q.correct,
+          lock:-1, reveal:false, gone:[], num:++S.qnum };
+  S.play = null; S.banner = { on:false, text:'', bad:false };
+  fire('snap');
+  startClock();
+  renderQ(); renderSit();
+  logLine('<b>Q' + S.q.num + '</b> · tier ' + q.tier + ' · ' + esc(q.text));
+}
+
+function lock(i){
+  if(!S.q || S.q.reveal) return;
+  if(S.q.gone.includes(i)) return;
+  stopClock();
+  S.q.lock = i;
+  fire('lockin');
+  renderQ(); publish(true);
+}
+
+function timeExpired(){
+  if(!S.q || S.q.reveal) return;
+  S.clock.run = false; S.clock.elapsed = S.clockDur;
+  S.q.lock = -1;
+  renderQ(); publish(true);
+  reveal();
+}
+
+function reveal(forced){
+  if(!S.q || S.q.reveal) return;
+  stopClock();
+  S.q.reveal = true;
+  const correct = S.q.lock === S.q.correct;
+  const e = clockElapsed();
+  const frac = S.clockDur > 0 ? e / S.clockDur : 1;
+  const opts = { forced:forced || null };
+  if(S.mode === 'drive') opts.yardsToGoal = 100 - S.drive.los;
+  const res = GTD.resolve(correct, S.q.lock < 0 ? 1.2 : frac, opts);
+  $('bandRead').textContent = (correct ? 'right' : S.q.lock < 0 ? 'no answer' : 'wrong') +
+    ' in ' + e.toFixed(1) + 's  →  ' + res.label;
+  renderQ();
+  if(S.mode === 'drive') advanceDrive(res, e); else advanceH2H(res, e);
+}
+
+/* =====================================================================
+   THE DRIVE
+   ===================================================================== */
+function fallBack(){
+  const D = S.drive;
+  const havens = [1].concat(D.marks).filter(h => h <= D.los);
+  const back = havens.length ? havens[havens.length - 1] : 1;
+  D.los = back; D.down = 1; D.dist = 10; D.first = Math.min(110, back + 10);
+  return back;
+}
+
+function advanceDrive(res, elapsed){
+  const D = S.drive;
+  const from = D.los;
+  const raw = Math.round(from + res.yards);
+  const to = Math.max(0, Math.min(100, raw));
+  const td = raw >= 100;
+  const safety = raw <= 0;
+  let banner = null, bad = false, cue;
+
+  const play = { id:++S.playId, key:res.key, label:res.label, yards:res.yards,
+                 good:!!res.good, td:td, from:from, to:to };
+
+  if(td){
+    play.label = 'TOUCHDOWN'; play.yards = to - from;
+    D.score += 7; D.los = 100; D.down = 1; D.dist = 10; D.first = 110;
+    banner = 'TOUCHDOWN — 7 POINTS'; cue = 'touchdown'; S.needNewDrive = true;
+  } else if(safety){
+    D.score = Math.max(0, D.score - 2);
+    D.los = 20; D.down = 1; D.dist = 10; D.first = 30;
+    banner = 'SAFETY — TWO OFF THE BOARD'; bad = true; cue = 'turnover';
+  } else if(res.turnover){
+    D.los = to;
+    const back = fallBack();
+    banner = res.label.toUpperCase() + ' — BACK TO THE ' + GTD.spot(back); bad = true; cue = 'turnover';
+  } else {
+    const gained = to - from;
+    D.los = to;
+    if(to >= D.first){
+      D.down = 1; D.dist = Math.min(10, 100 - to); D.first = Math.min(110, to + 10);
+      cue = res.good ? 'firstdown' : 'correct';
+      if(res.key === 'bomb' || res.key === 'big') cue = 'bigplay';
+    } else {
+      D.dist = Math.max(1, D.first - to);
+      D.down++;
+      cue = res.good ? 'correct' : (res.key === 'sack' || res.key === 'tfl' ? 'sack' : 'wrong');
+      if(D.down > 4){
+        const back = fallBack();
+        banner = 'TURNOVER ON DOWNS — BACK TO THE ' + GTD.spot(back); bad = true; cue = 'turnover';
+      }
+    }
+    if(gained > 0) void 0;
+  }
+  S.play = play;
+  S.banner = banner ? { on:true, text:banner, bad:bad } : { on:false, text:'', bad:false };
+  fire(cue);
+  logLine('<b>' + play.label + '</b> · ' + (play.yards >= 0 ? '+' : '') + play.yards + ' yds · ' +
+          elapsed.toFixed(1) + 's · now ' + GTD.distText(D.down, D.dist, D.los) + ' at ' + GTD.spot(D.los),
+          res.good ? 'good' : 'bad');
+  renderSit(); publish(true);
+}
+
+function newDrive(quiet){
+  const D = S.drive;
+  D.los = 1; D.down = 1; D.dist = 10; D.first = 11;
+  S.needNewDrive = false;
+  S.banner = { on:false, text:'', bad:false };
+  S.play = null;
+  if(!quiet){ renderSit(); publish(true); logLine('new drive from the 1'); }
+}
+
+function kickFG(){
+  if(S.mode !== 'drive') return;
+  const D = S.drive;
+  const att = GTD.fgDistance(D.los);
+  const good = att <= 57;
+  const play = { id:++S.playId, key:'fg', label:good ? 'IT IS GOOD' : 'NO GOOD', yards:0,
+                 good:good, fg:good, from:D.los, to:D.los };
+  if(good){ D.score += 3; S.banner = { on:true, text:att + '-YARD FIELD GOAL IS GOOD — 3 POINTS', bad:false }; }
+  else S.banner = { on:true, text:att + '-YARD ATTEMPT IS NO GOOD', bad:true };
+  S.play = play; S.needNewDrive = true;
+  fire(good ? 'fieldgoal' : 'wrong');
+  logLine('<b>' + att + '-yard field goal</b> — ' + (good ? 'good' : 'no good'), good ? 'good' : 'bad');
+  renderSit(); publish(true);
+}
+
+/* =====================================================================
+   HEAD TO HEAD
+   ===================================================================== */
+function advanceH2H(res, elapsed){
+  const H = S.h2h;
+  const dir = H.poss === 0 ? 1 : -1;
+  const from = H.ball;
+  const fast = elapsed <= 5;
+  const step = H.step * (H.bonus && fast && res.good ? 2 : 1);
+  let to = from, td = false, banner = null, bad = false, cue;
+  const me = H.teams[H.poss], them = H.teams[1 - H.poss];
+
+  if(res.good){
+    to = Math.max(0, Math.min(100, from + dir * step));
+    td = dir > 0 ? to >= 100 : to <= 0;
+    cue = td ? 'touchdown' : (H.bonus && fast ? 'bigplay' : 'correct');
+  } else {
+    cue = 'turnover'; bad = true;
+    banner = me.name + ' GIVES IT UP — ' + them.name + "'S BALL";
+  }
+
+  const play = { id:++S.playId, key:res.good ? (td ? 'bomb' : 'solid') : 'inc',
+                 label:td ? 'TOUCHDOWN' : res.good ? 'MOVE THE BALL' : 'TURNOVER',
+                 sub:td ? '7 POINTS' : res.good ? '+' + step + ' YARDS' : them.name + "'S BALL",
+                 yards:res.good ? dir * step : 0, good:!!res.good, td:td, from:from, to:to };
+
+  if(td){
+    me.score += 7;
+    banner = me.name + ' SCORES — 7 POINTS';
+    H.ball = 50; H.poss = 1 - H.poss;
+  } else if(res.good){
+    H.ball = to;
+  } else {
+    H.ball = from; H.poss = 1 - H.poss;
+  }
+  H.target = H.poss === 0 ? Math.min(100, H.ball + H.step) : Math.max(0, H.ball - H.step);
+
+  S.play = play;
+  S.banner = banner ? { on:true, text:banner, bad:bad } : { on:false, text:'', bad:false };
+  fire(cue);
+  logLine('<b>' + play.label + '</b> · ' + me.name + ' · ' + elapsed.toFixed(1) + 's · ball on ' + H.ball,
+          res.good ? 'good' : 'bad');
+  renderSit(); publish(true);
+}
+
+/* =====================================================================
+   LIFELINES — Millionaire's three, wearing football clothes
+   ===================================================================== */
+function lifelinePI(){
+  const D = S.drive;
+  if(!D.ll.pi || !S.q || S.q.reveal) return;
+  const wrong = [0, 1, 2, 3].filter(i => i !== S.q.correct);
+  GTD.shuffle(wrong).slice(0, 2).forEach(i => S.q.gone.push(i));
+  D.ll.pi = false;
+  S.banner = { on:true, text:'PASS INTERFERENCE — TWO ANSWERS COME OFF THE BOARD', bad:false };
+  fire('lockin'); renderQ(); renderSit(); publish(true);
+  logLine('lifeline: 50/50');
+}
+function lifelineTO(){
+  const D = S.drive;
+  if(!D.ll.to) return;
+  D.ll.to = false;
+  S.clockDur += 15; $('clockDur').value = S.clockDur;
+  if(S.q && !S.q.reveal){ S.clock.run = true; S.clock.t0 = performance.now() - clockElapsed() * 1000; S.clock.seq++; }
+  S.banner = { on:true, text:'TIMEOUT — FIFTEEN MORE SECONDS', bad:false };
+  fire('lockin'); renderSit(); publish(true);
+  logLine('lifeline: timeout, clock now ' + S.clockDur + 's');
+}
+function lifelineCC(){
+  const D = S.drive;
+  if(!D.ll.cc) return;
+  D.ll.cc = false;
+  S.clock.run = false; S.clock.elapsed = clockElapsed();
+  S.banner = { on:true, text:"COACH'S CHALLENGE — ASK THE ROOM", bad:false };
+  fire('lockin'); renderSit(); publish(true);
+  logLine("lifeline: ask the room (clock held at " + clockElapsed().toFixed(1) + 's)');
+}
+
+/* =====================================================================
+   RENDER
+   ===================================================================== */
+function esc(s){ return String(s).replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c])); }
+
+function sit(k, v, cls){
+  const d = el('sit');
+  d.append(el('k', k), el('v ' + (cls || ''), v));
+  return d;
+}
+function renderSit(){
+  const host = $('sitrep'); host.innerHTML = '';
+  if(S.mode === 'drive'){
+    const D = S.drive;
+    host.append(
+      sit('DOWN', GTD.distText(D.down, D.dist, D.los), 'gold'),
+      sit('BALL ON', GTD.spot(D.los)),
+      sit('TO THE HOUSE', Math.max(0, 100 - D.los) + ' YDS'),
+      sit('POINTS', String(D.score), 'green'),
+      sit('SAFE HAVEN', GTD.spot([1].concat(D.marks).filter(h => h <= D.los).pop() || 1))
+    );
+    const att = GTD.fgDistance(D.los);
+    $('fgHint').textContent = att <= 57
+      ? att + '-yard attempt — good from here. Takes 3 and ends the drive.'
+      : att + '-yard attempt — too far. Get inside the opponent 40.';
+    $('kickBtn').disabled = att > 57;
+    $('setLos').value = D.los; $('setDown').value = D.down; $('setDist').value = D.dist; $('setScore').value = D.score;
+    ['pi','to','cc'].forEach((k, i) => {
+      const b = [$('llPI'), $('llTO'), $('llCC')][i];
+      b.disabled = !D.ll[k]; b.classList.toggle('on', !!D.ll[k]);
+    });
+  } else {
+    const H = S.h2h, T = H.teams;
+    host.append(
+      sit(T[0].name + (H.poss === 0 ? ' ● BALL' : ''), String(T[0].score), H.poss === 0 ? 'gold' : ''),
+      sit('BALL ON', H.ball === 50 ? 'MIDFIELD' : H.ball > 50 ? T[1].name + ' ' + (100 - H.ball) : T[0].name + ' ' + H.ball),
+      sit('NEXT', (H.poss === 0 ? '→ ' : '← ') + H.step + ' YDS'),
+      sit(T[1].name + (H.poss === 1 ? ' ● BALL' : ''), String(T[1].score), H.poss === 1 ? 'gold' : '')
+    );
+    $('poss0').classList.toggle('on', H.poss === 0);
+    $('poss1').classList.toggle('on', H.poss === 1);
+  }
+}
+
+const KEYS = ['A', 'B', 'C', 'D'];
+function renderQ(){
+  const host = $('coptsC'); host.innerHTML = '';
+  const t = $('qtextC');
+  if(!S.q){
+    t.className = 'empty';
+    t.textContent = 'Nothing up yet. Hit SERVE QUESTION and read it out — the overlay puts the question and the four answers on screen and starts the clock.';
+    $('revealBtn').disabled = true; $('timeUp').disabled = true;
+    $('bandRead').textContent = 'no question up';
+    return;
+  }
+  t.className = ''; t.textContent = S.q.text;
+  S.q.choices.forEach((c, i) => {
+    const b = document.createElement('button');
+    let cls = 'copt';
+    if(S.q.gone.includes(i)) cls += ' gone';
+    if(S.q.lock === i) cls += ' lock';
+    if(S.q.reveal && i === S.q.correct) cls += ' right';
+    b.className = cls;
+    b.innerHTML = '<span class="k">' + KEYS[i] + '</span><span class="t">' + esc(c) + '</span>' +
+      (i === S.q.correct ? '<span class="tag">correct</span>' : '');
+    b.onclick = () => lock(i);
+    host.appendChild(b);
+  });
+  $('revealBtn').disabled = S.q.reveal;
+  $('timeUp').disabled = S.q.reveal;
+}
+
+/* =====================================================================
+   SOUND RACK
+   ===================================================================== */
+function fire(cue){
+  if(!cue) return;
+  S.cue = { id:++S.cueId, name:cue };
+  GTD.playCue(cue);
+}
+function renderCues(){
+  const have = GTD.listClips();
+  const host = $('cueGrid'); host.innerHTML = '';
+  GTD.CUES.forEach(([k, desc]) => {
+    const d = el('cue' + (have[k] ? ' has' : ''));
+    d.title = desc;
+    const nm = el('nm', k); d.appendChild(nm);
+    const play = document.createElement('button');
+    play.textContent = '▶'; play.onclick = () => GTD.playCue(k);
+    d.appendChild(play);
+    if(have[k]){
+      const x = document.createElement('button');
+      x.textContent = '✕'; x.title = have[k].name;
+      x.onclick = () => GTD.clearClip(k).then(renderCues);
+      d.appendChild(x);
+    }
+    host.appendChild(d);
+  });
+}
+GTD.initSound().then(renderCues);
+(() => {
+  const z = $('dropzone');
+  ['dragenter','dragover'].forEach(e => z.addEventListener(e, ev => { ev.preventDefault(); z.classList.add('hot'); }));
+  ['dragleave','drop'].forEach(e => z.addEventListener(e, ev => { ev.preventDefault(); z.classList.remove('hot'); }));
+  z.addEventListener('drop', ev => {
+    GTD.dropFiles(ev.dataTransfer.files).then(report => {
+      renderCues();
+      report.forEach(([name, cue]) => logLine(cue
+        ? 'sound: <b>' + esc(name) + '</b> → ' + cue
+        : '<span class="bad">sound: ' + esc(name) + " — couldn't tell which cue that is, rename it</span>"));
+    });
+  });
+  z.addEventListener('click', () => GTD.audioCtx());
+})();
+$('muteBox').onchange = e => GTD.mute(e.target.checked);
+
+/* =====================================================================
+   QUESTION BANK
+   ===================================================================== */
+function poolNote(){
+  const pool = GTD.POOL();
+  const left = pool.filter(q => !S.used[q.id]).length;
+  $('poolNote').textContent = left + ' of ' + pool.length + ' left this taping';
+  const byTier = [1, 2, 3].map(t => pool.filter(q => q.tier === t && !S.used[q.id]).length);
+  $('bankHint').textContent = 'tier 1: ' + byTier[0] + ' · tier 2: ' + byTier[1] + ' · tier 3: ' + byTier[2];
+}
+$('bankReset').onclick = () => { S.used = {}; poolNote(); logLine('question bank reset'); };
+$('bankToggle').onclick = () => {
+  const b = $('bankBox');
+  b.style.display = b.style.display === 'none' ? 'block' : 'none';
+  $('bankToggle').textContent = b.style.display === 'none' ? 'Show the paste box' : 'Hide the paste box';
+};
+$('bankLoad').onclick = () => {
+  const { rows, bad } = GTD.parseImport($('bankText').value);
+  if(!rows.length){ $('bankResult').innerHTML = '<span class="warn">nothing readable in there</span>'; return; }
+  GTD.rebuildPool(rows);
+  S.used = {};
+  $('bankResult').innerHTML = rows.length + ' added' +
+    (bad.length ? ' · <span class="warn">skipped line' + (bad.length > 1 ? 's ' : ' ') + bad.join(', ') + '</span>' : '');
+  poolNote();
+  logLine('loaded ' + rows.length + ' custom questions');
+};
+$('bankClear').onclick = () => { GTD.rebuildPool(); S.used = {}; poolNote(); $('bankResult').textContent = 'back to the built-in bank'; };
+
+/* =====================================================================
+   PAYLOAD
+
+   Only the active mode's block travels. Sending both blocks is how the
+   Savant pages ended up over ntfy's 4096-byte message ceiling, above which
+   ntfy quietly turns the message into a file attachment the overlay can't
+   read. Worst case here is well under a kilobyte.
+   ===================================================================== */
+function payload(n){
+  const out = {
+    n:n || 0, mode:S.mode, layout:S.layout,
+    plate:{ on:S.showPlate, kick:S.plate.kick, name:S.plate.name, sub:S.plate.sub },
+    banner:S.banner,
+    q:(S.showQ && S.q) ? {
+      on:true, text:S.q.text, choices:S.q.choices, correct:S.q.correct,
+      tier:S.q.tier, lock:S.q.lock, reveal:S.q.reveal, gone:S.q.gone, num:S.q.num
+    } : { on:false },
+    clock:{ on:!!(S.showClock && S.q && S.showQ), dur:S.clockDur, seq:S.clock.seq,
+            run:S.clock.run, elapsed:+clockElapsed().toFixed(2) },
+    pal:S.pal, play:S.play, cue:S.cue
+  };
+  if(S.mode === 'drive') out.drive = S.drive; else out.h2h = S.h2h;
+  return JSON.stringify(out);
+}
+/* everything the overlay actually draws, minus the running clock — otherwise
+   every tick would look like a change worth a message */
+function visibleSig(){
+  const p = JSON.parse(payload(0));
+  delete p.clock.elapsed;
+  return JSON.stringify(p);
+}
+
+/* =====================================================================
+   MULTI-RELAY PUBLISH
+
+   Every message goes to every ticked relay at once and counts as delivered
+   the moment any one accepts it, so a 429 from ntfy.sh or a mirror going
+   dark costs nothing while another is answering. Each relay carries its own
+   backoff. The sequence number is clock-based rather than a counter so
+   reloading this page can't restart it below what the overlay has already
+   applied.
+   ===================================================================== */
+let lastSig = null, sendTimer = null, sentCount = 0, lastN = 0;
+function nextSeq(){ lastN = Math.max(Date.now(), lastN + 1); return lastN; }
+
+const RELAY = GTD.RELAYS.map(r => ({ ...r, on:true, pending:null, inFlight:false, backoff:0, ok:0, fail:0, state:'idle' }));
+try{
+  const saved = JSON.parse(localStorage.getItem('gtd_relays') || 'null');
+  if(saved) RELAY.forEach(r => { if(saved[r.host] !== undefined) r.on = !!saved[r.host]; });
+}catch(e){}
+function saveRelays(){
+  try{ const o = {}; RELAY.forEach(r => o[r.host] = r.on); localStorage.setItem('gtd_relays', JSON.stringify(o)); }catch(e){}
+}
+function note(msg, bad){ $('saveHint').innerHTML = bad ? '<b class="warn">' + msg + '</b>' : msg; }
+function meter(){
+  const on = RELAY.filter(r => r.on);
+  const live = on.filter(r => r.state !== 'down').length;
+  const queued = RELAY.filter(r => r.pending !== null).length;
+  $('reqMeter').textContent = sentCount + ' sent · ' + live + '/' + on.length + ' relays up' + (queued ? ' · ' + queued + ' retrying' : '');
+  $('reqMeter').className = 'hint' + (live === 0 ? ' warn' : '');
+  paintRelays();
+}
+function paintRelays(){
+  const host = $('relayRow'); if(!host) return;
+  host.innerHTML = '';
+  RELAY.forEach(r => {
+    const d = el('relay ' + (r.on ? r.state : 'off'));
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.checked = r.on;
+    cb.onchange = () => { r.on = cb.checked; if(!r.on){ r.pending = null; r.state = 'idle'; } saveRelays(); meter(); };
+    d.append(cb, el('rl', r.label), el('rs',
+      !r.on ? 'off' : r.state === 'ok' ? 'ok ' + r.ok : r.state === 'busy' ? 'busy — retrying' : r.state === 'down' ? 'no answer' : 'idle'));
+    host.appendChild(d);
+  });
+}
+/* a relay that hangs is worse than one that refuses: without a deadline the
+   request sits on the browser's TCP timeout and that relay retries nothing */
+const SEND_TIMEOUT = 6000;
+function fetchWithTimeout(url, opts, ms){
+  if(typeof AbortController === 'undefined') return fetch(url, opts);
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(), ms);
+  return fetch(url, { ...opts, signal:ac.signal }).finally(() => clearTimeout(t));
+}
+function flushRelay(r){
+  if(!r.on || r.inFlight || r.pending === null || !TOPIC) return;
+  r.inFlight = true;
+  const body = r.pending; r.pending = null;
+  fetchWithTimeout('https://' + r.host + '/' + encodeURIComponent(TOPIC), { method:'POST', body:body }, SEND_TIMEOUT)
+    .then(res => {
+      if(res.status === 429 || res.status >= 500){
+        if(r.pending === null) r.pending = body;
+        r.backoff = Math.min(30000, r.backoff ? Math.round(r.backoff * 1.8) : 2000);
+        r.state = 'busy'; r.fail++;
+      } else if(!res.ok){
+        if(r.pending === null) r.pending = body;
+        r.backoff = Math.min(30000, r.backoff ? Math.round(r.backoff * 1.8) : 4000);
+        r.state = 'down'; r.fail++;
+      } else { r.backoff = 0; r.ok++; r.state = 'ok'; }
+    })
+    .catch(() => {
+      if(r.pending === null) r.pending = body;
+      r.backoff = Math.min(30000, r.backoff ? Math.round(r.backoff * 1.8) : 3000);
+      r.state = 'down'; r.fail++;
+    })
+    .then(() => {
+      r.inFlight = false;
+      const anyOk = RELAY.some(x => x.on && x.state === 'ok');
+      note(anyOk ? 'sent ' + sentCount + ' · ' + new Date().toLocaleTimeString()
+                 : 'every relay is busy or down — still retrying. Use “Snapshot URL” if it stays that way.', !anyOk);
+      meter();
+      if(r.pending !== null) setTimeout(() => flushRelay(r), r.backoff || 120);
+    });
+}
+function flushAll(body){
+  RELAY.forEach(r => { if(!r.on) return; r.pending = body; flushRelay(r); });
+  meter();
+}
+function publish(force){
+  if(BC){ try{ BC.postMessage(JSON.parse(payload(0))); }catch(e){} }
+  if(!TOPIC) return;
+  const sig = visibleSig();
+  if(!force && sig === lastSig) return;
+  lastSig = sig;
+  clearTimeout(sendTimer);
+  sendTimer = setTimeout(() => { sentCount++; flushAll(payload(nextSeq())); }, 140);
+}
+if(BC) BC.onmessage = e => { if(e.data && e.data.__req){ try{ BC.postMessage(JSON.parse(payload(0))); }catch(err){} } };
+
+function snapshotURL(){
+  const base = location.href.split('#')[0].replace(/control\.html.*$/, '');
+  const body = payload(nextSeq());
+  const b64 = btoa(unescape(encodeURIComponent(body))).replace(/\+/g, '-').replace(/\//g, '_');
+  return base + 'display.html?layout=' + S.layout + '#s=' + b64;
+}
+function displayURL(){
+  const base = location.href.split('#')[0].replace(/control\.html.*$/, '');
+  return base + 'display.html?topic=' + encodeURIComponent(TOPIC) + '&layout=' + S.layout;
+}
+function loadPreview(){
+  const f = $('previewFrame');
+  f.classList.toggle('vert', S.layout === 'vert');
+  f.src = 'display.html?layout=' + S.layout + '&_=' + Math.floor(Math.random() * 1e9);
+  $('previewPlaceholder').style.display = 'none';
+  f.style.display = 'block';
+}
+$('connectBtn').onclick = () => {
+  TOPIC = $('topicInput').value.trim();
+  if(!TOPIC){ alert('Give it a topic name first — anything, with a random tail so nobody else lands on it.'); return; }
+  localStorage.setItem('gtd_topic', TOPIC);
+  $('connStatus').textContent = 'connected'; $('connStatus').className = 'mono ok';
+  $('copyDisplayBtn').disabled = false;
+  meter(); publish(true);
+  logLine('connected to <b>' + esc(TOPIC) + '</b>');
+};
+$('copyDisplayBtn').onclick = () => {
+  const url = displayURL();
+  navigator.clipboard.writeText(url).then(() => {
+    $('copyDisplayBtn').textContent = 'Copied!';
+    setTimeout(() => { $('copyDisplayBtn').textContent = 'Copy Display URL'; }, 1500);
+  }).catch(() => prompt('Copy this URL:', url));
+};
+$('snapBtn').onclick = () => {
+  const url = snapshotURL();
+  navigator.clipboard.writeText(url).then(() => {
+    $('snapBtn').textContent = 'Copied — paste into OBS';
+    setTimeout(() => { $('snapBtn').textContent = 'Snapshot URL'; }, 2200);
+  }).catch(() => prompt('Paste this into the OBS browser source:', url));
+};
+$('resyncBtn').onclick = () => publish(true);
+$('refreshPreviewBtn').onclick = loadPreview;
+
+/* =====================================================================
+   WIRING
+   ===================================================================== */
+function setMode(m){
+  S.mode = m;
+  document.querySelectorAll('.mtab').forEach(t => t.classList.toggle('on', t.dataset.m === m));
+  document.querySelectorAll('.mpanel').forEach(p => p.classList.toggle('on', p.id === 'p-' + m));
+  S.q = null; S.play = null; S.banner = { on:false, text:'', bad:false };
+  renderQ(); renderSit(); publish(true);
+}
+document.querySelectorAll('.mtab').forEach(t => t.onclick = () => setMode(t.dataset.m));
+
+$('nextQ').onclick = serve;
+$('clearQ').onclick = () => { S.q = null; S.play = null; renderQ(); publish(true); };
+$('startClock').onclick = () => {
+  if(!S.q) return;
+  if(S.clock.run){ stopClock(); } else { S.clock.run = true; S.clock.t0 = performance.now() - S.clock.elapsed * 1000; S.clock.seq++; }
+  publish(true);
+};
+$('revealBtn').onclick = () => reveal();
+$('timeUp').onclick = timeExpired;
+$('redoBtn').onclick = () => {
+  if(!S.lastSnapshot) return;
+  const snap = JSON.parse(S.lastSnapshot);
+  S.drive = snap.drive; S.h2h = snap.h2h; S.play = null;
+  S.q = snap.q ? { ...snap.q, reveal:false, lock:-1 } : null;
+  S.banner = { on:false, text:'', bad:false };
+  renderQ(); renderSit(); publish(true);
+  logLine('redo — rolled the last play back');
+};
+
+$('llPI').onclick = lifelinePI;
+$('llTO').onclick = lifelineTO;
+$('llCC').onclick = lifelineCC;
+$('kickBtn').onclick = kickFG;
+$('newDrive').onclick = () => newDrive(false);
+[['fInt','int'], ['fFum','fumble'], ['fFlag','flag'], ['fFree','free'], ['fHouse','house']].forEach(([id, k]) => {
+  $(id).onclick = () => {
+    if(S.q && !S.q.reveal){ stopClock(); S.q.reveal = true; renderQ(); }
+    const f = { ...GTD.FORCED[k] };
+    if(k === 'house' && S.mode === 'drive') f.yards = 100 - S.drive.los;
+    if(S.mode === 'drive') advanceDrive(f, clockElapsed()); else advanceH2H(f, clockElapsed());
+  };
+});
+$('applySit').onclick = () => {
+  const D = S.drive;
+  D.los = Math.max(1, Math.min(99, +$('setLos').value || D.los));
+  D.down = Math.max(1, Math.min(4, +$('setDown').value || D.down));
+  D.dist = Math.max(1, Math.min(99, +$('setDist').value || D.dist));
+  D.score = Math.max(0, +$('setScore').value || 0);
+  D.first = Math.min(110, D.los + D.dist);
+  S.needNewDrive = false;
+  renderSit(); publish(true);
+};
+
+$('applyTeams').onclick = () => {
+  const H = S.h2h;
+  H.teams[0] = { name:($('t1name').value || 'ONE').toUpperCase().slice(0, 10), color:$('t1col').value, score:+$('t1score').value || 0 };
+  H.teams[1] = { name:($('t2name').value || 'TWO').toUpperCase().slice(0, 10), color:$('t2col').value, score:+$('t2score').value || 0 };
+  H.step = Math.max(1, Math.min(25, +$('h2hStep').value || 5));
+  H.bonus = $('h2hBonus').checked;
+  H.target = H.poss === 0 ? Math.min(100, H.ball + H.step) : Math.max(0, H.ball - H.step);
+  renderSit(); publish(true);
+};
+$('poss0').onclick = () => { S.h2h.poss = 0; S.h2h.target = Math.min(100, S.h2h.ball + S.h2h.step); renderSit(); publish(true); };
+$('poss1').onclick = () => { S.h2h.poss = 1; S.h2h.target = Math.max(0, S.h2h.ball - S.h2h.step); renderSit(); publish(true); };
+$('h2hReset').onclick = () => {
+  S.h2h.ball = 50; S.h2h.target = S.h2h.poss === 0 ? 55 : 45;
+  S.play = null; S.banner = { on:false, text:'', bad:false };
+  renderSit(); publish(true);
+};
+['h2hStep','h2hBonus'].forEach(id => $(id).onchange = () => $('applyTeams').click());
+
+$('showQ').onchange = e => { S.showQ = e.target.checked; publish(true); };
+$('showClock').onchange = e => { S.showClock = e.target.checked; publish(true); };
+$('showPlate').onchange = e => { S.showPlate = e.target.checked; publish(true); };
+$('bannerOn').onclick = () => { S.banner = { on:true, text:$('bannerText').value.toUpperCase(), bad:false }; publish(true); };
+$('bannerOff').onclick = () => { S.banner = { on:false, text:'', bad:false }; publish(true); };
+$('layoutPick').onchange = e => { S.layout = e.target.value; loadPreview(); publish(true); };
+['offCol','offTrim','defCol','skinCol'].forEach((id, i) => {
+  $(id).onchange = () => {
+    S.pal = { offP:$('offCol').value, offT:$('offTrim').value, defP:$('defCol').value, defT:'#e8eef4', skin:$('skinCol').value };
+    publish(true);
+  };
+});
+$('clockDur').onchange = e => { S.clockDur = Math.max(5, Math.min(90, +e.target.value || 20)); publish(true); };
+
+/* =====================================================================
+   HOTKEYS — a live host has one hand on the desk, not on a mouse
+   ===================================================================== */
+addEventListener('keydown', ev => {
+  const t = ev.target;
+  if(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
+  if(ev.metaKey || ev.ctrlKey || ev.altKey) return;
+  const k = ev.key.toLowerCase();
+  const map = {
+    n:serve, t:timeExpired, p:lifelinePI, o:lifelineTO, c:lifelineCC, k:kickFG,
+    r:() => $('redoBtn').click(),
+    enter:() => reveal(),
+    ' ':() => $('startClock').click(),
+    escape:() => $('clearQ').click()
+  };
+  if('abcd'.includes(k)){ ev.preventDefault(); lock('abcd'.indexOf(k)); return; }
+  if(S.mode === 'h2h' && (k === '1' || k === '2')){ ev.preventDefault(); $(k === '1' ? 'poss0' : 'poss1').click(); return; }
+  if(map[k]){ ev.preventDefault(); map[k](); }
+});
+
+/* remember the state before each play so R can walk one back */
+const _advD = advanceDrive, _advH = advanceH2H;
+advanceDrive = function(res, e){ S.lastSnapshot = JSON.stringify({ drive:S.drive, h2h:S.h2h, q:S.q }); return _advD(res, e); };
+advanceH2H  = function(res, e){ S.lastSnapshot = JSON.stringify({ drive:S.drive, h2h:S.h2h, q:S.q }); return _advH(res, e); };
+
+/* =====================================================================
+   BOOT
+   ===================================================================== */
+if(!TOPIC){
+  $('topicInput').value = 'jomboy-gtd-' + Math.random().toString(36).slice(2, 7);
+}
+renderSit(); renderQ(); poolNote(); meter(); loadPreview();
+if(TOPIC){ $('connStatus').textContent = 'topic remembered — hit Connect'; }
+logLine('ready · ' + GTD.POOL().length + ' questions loaded');
+</script>
+</body>
+</html>

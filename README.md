@@ -1,0 +1,169 @@
+# Going the Distance
+
+An NFL trivia drive for Jomboy Media, built the same way as the other show tools: a host
+page and an overlay page, talking over a public [ntfy](https://ntfy.sh) topic so the laptop
+running the show and the machine running OBS never have to be on the same network.
+
+You start on your own 1-yard line and answer your way to the end zone. **How fast you answer
+is the play.** Fire back instantly and you take the top off it. Sit on it and you scramble for
+two. Miss it and you're eating a sack.
+
+```
+index.html     the door
+control.html   the host panel — keep this off camera
+display.html   the 8-bit field — this is the OBS browser source
+gtd.js         question bank, play engine, pixel art, audio
+gtd.css        overlay styling for all three layouts
+```
+
+---
+
+## Running a taping
+
+1. Open **control.html**, pick a topic name (it pre-fills a random one), hit **Connect**.
+2. **Copy Display URL**, paste it into an OBS browser source.
+   - Lower third → `1920 × 1080`
+   - Vertical → `1080 × 1920` (add `&layout=vert`, or just size the source tall and it works it out)
+   - Full board → `&layout=full`
+3. Press **N**, read the question out, click the answer they gave, press **Enter**.
+
+### Hotkeys
+
+| key | does |
+|---|---|
+| `N` | serve the next question |
+| `A` `B` `C` `D` | lock that answer and stop the clock |
+| `Enter` | reveal and run the play |
+| `Space` | start / stop the clock |
+| `T` | time expired |
+| `P` `O` `C` | pass interference (50/50), timeout, coach's challenge |
+| `K` | take the field goal |
+| `R` | walk the last play back |
+| `1` `2` | hand the ball over (head to head) |
+
+---
+
+## The two games
+
+### Going the Distance — the drive
+
+Own 1 to the end zone, four downs to make ten yards, exactly like football. The question tier
+climbs with the field position: tier 1 in your own end, tier 2 past midfield, tier 3 in the red
+zone. The defense stiffens as you get closer, which is Millionaire's ladder wearing a helmet.
+
+**Right answer, by how fast:**
+
+| answered within | play | yards |
+|---|---|---|
+| first 15% of the clock | DEEP SHOT | 26–44 |
+| 35% | BIG GAIN | 14–24 |
+| 60% | GOOD GAIN | 8–13 |
+| 85% | SHORT GAIN | 4–7 |
+| the rest | SCRAMBLE | 1–3 |
+
+**Wrong answer** inverts it, and stays football-true: firing an answer out fast and missing is an
+**incomplete** — you threw it away. Sitting on it and missing is a **sack** — you held the ball
+too long. In between is getting **stuffed** in the backfield. Running the clock out is
+**delay of game**.
+
+**Millionaire's furniture, translated:**
+
+- **50:50** → *pass interference*, two wrong answers come off the board
+- **Phone a friend** → *timeout*, fifteen more seconds on the clock
+- **Ask the audience** → *coach's challenge*, clock stops and you poll the room
+- **Guaranteed levels** → *safe havens* at the 25, the 50 and the opponent 20. Turn it over on
+  downs and the next drive starts at the last one you got past, not back at the goal line.
+- **Walking away with the money** → *take the field goal*. Anywhere inside a 57-yard attempt you
+  can stop, bank 3, and end the drive rather than risk it.
+
+Touchdown is 7. Getting driven back into your own end zone is a safety and costs you 2.
+
+### Head to Head
+
+Ball on the 50. Every right answer moves it five yards your way and you keep it; every wrong
+answer is a turnover on the spot and the other side takes over driving the other way. Reach the
+end zone for 7 and it goes back to the 50. The yards-per-answer and an optional
+*double it under five seconds* bonus are both on the control page.
+
+---
+
+## The three layouts
+
+All three are the same components, so nothing is a separate build.
+
+- **`layout=lower`** — transparent background, everything anchored to the bottom. Drops over
+  the shot. Turn the question card off in **Look** and you're left with a clean field-and-chyron
+  lower third.
+- **`layout=vert`** — 9:16. The field stands up and the drive runs bottom to top, question card
+  above it. This is the Shorts and Reels cut.
+- **`layout=full`** — the whole screen as a game board on navy.
+
+The display page picks the vertical cut on its own if the source is taller than it is wide, so a
+1080 × 1920 browser source with no query string still comes up right. The field only ever scales
+by whole numbers, so the pixels stay hard at any size, and the type takes up the slack.
+
+---
+
+## Sound
+
+**The Cake record isn't in here and can't be** — it's not ours to ship. What is in here is the
+rack it slots into.
+
+Drop audio files onto the control page and the **filename picks the cue**: `touchdown.mp3`,
+`sack.wav`, `big-play.m4a`, `first-down.mp3`, `turnover.mp3`, `riff.mp3`, `lockin`, `tick`,
+`snap`, `fieldgoal`, `wrong`, `correct`. Aliases are loose — `td.mp3`, `TD 2.wav` and
+`touchdown-final.m4a` all land on the same peg. Clips cache in the browser, so they survive a
+reload and you only load them once.
+
+Cut your two-second guitar stabs, name them after the moment you want them on, drop them in.
+Every cue you don't supply falls back to an original chiptune sting synthesised in the page, so
+it's never silent out of the box.
+
+By default the **control page** makes the noise, out of the machine you're hosting on. If you'd
+rather the OBS source do it, add `&sound=1` to the display URL and drop the same files on the
+box that appears top-right.
+
+---
+
+## Questions
+
+96 built in, split across the three tiers. **Spot-check them before a taping** — they're written
+from memory of the record book, and records move.
+
+To use your own, open the paste box in section 6 and give it one a line:
+
+```
+question | right answer | wrong | wrong | wrong | tier
+```
+
+The right answer always goes first and the four choices get shuffled when the question is
+served, so you never have to count letters. Tier is optional and defaults to 2. Loading your own
+replaces the built-in bank; **Back to the built-in bank** puts it back.
+
+---
+
+## How the sync works
+
+Same pattern as the Trade Deadline and Savant pages, with the lessons already applied:
+
+- **Four relays, not one.** Every message goes to ntfy.sh plus three public mirrors at once and
+  the overlay subscribes to all of them, first copy wins. ntfy's anonymous budget and its uptime
+  are both per host, so this takes all four failing together to stop a show.
+- **Clock-based sequence numbers** on every payload, so the duplicate copies collapse, a slow
+  relay can't deliver stale state on top of newer state, and reloading the control page doesn't
+  restart the sequence below what the overlay has already applied.
+- **Nothing publishes on a timer.** The play clock is run locally by the overlay off a sequence
+  number, and the real timing is measured on the control page — the host stops the clock by
+  clicking the answer that was actually given, so nothing depends on two machines agreeing what
+  time it is. A message only goes out when something the overlay is drawing would change.
+- **One message a play.** The result and the new down-and-distance travel together; the overlay
+  holds the chyron until the runner lands so it never reads 2nd & 4 while the guy is still
+  standing on 1st & 10. A full game is well under a hundred messages.
+- **Snapshot URL** bakes the whole state into the display URL fragment. Paste it into the OBS
+  source and the right picture comes up, frozen — enough to finish a round with every relay down.
+- **Animation watchdog.** A browser source that isn't being rendered stops advancing the
+  animation clock, which would hold every entrance at opacity 0 and put a blank overlay to air.
+  The display watches the timeline and, if it stalls, kills animation outright and paints the end
+  states.
+
+Topics are public to anyone who knows the name, so keep the random tail on it.

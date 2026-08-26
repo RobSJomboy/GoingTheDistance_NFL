@@ -1,0 +1,222 @@
+/* =====================================================================
+   GOING THE DISTANCE — overlay styling
+
+   One sheet, three layouts. `lay-lower` is the transparent lower third for
+   a normal 16:9 show, `lay-full` is the whole-screen board, `lay-vert` is
+   the 9:16 cut for Shorts and Reels. Only the layout class changes between
+   them — the field, the chyron and the question card are the same
+   components in all three.
+
+   Type is sized in absolute pixels against a 1920-wide frame and scaled by
+   --s, rather than derived from the field's pixel unit. The two want
+   different things: the art wants an integer upscale, the copy wants to be
+   legible on a phone.
+   ===================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&family=Press+Start+2P&display=swap');
+
+:root{
+  --navy:#0d1f2d;  --navy2:#11273a; --edge:#22415c; --deep:#071420;
+  --gold:#fbcc7a;  --gold2:#e0a83f;
+  --ink:#eef4fa;   --dim:#8fabc4;
+  --green:#3fbf6f; --red:#e2453c;  --blue:#4fa8ff;
+  --px:4;                     /* field upscale — integer keeps pixels hard */
+  --s:1;                      /* type scale */
+  --u:4px;                    /* bevel unit */
+  --fw:calc(480px * var(--px));   /* field width, wide cut */
+  --pixel:'Press Start 2P', 'DM Mono', monospace;
+  --disp:'Bebas Neue', 'Arial Narrow', sans-serif;
+}
+body.lay-vert{ --fw:calc(270px * var(--px)); }
+
+*{ margin:0; padding:0; box-sizing:border-box; }
+html,body{ width:100%; height:100%; overflow:hidden; background:transparent; }
+body{ font-family:'DM Sans', -apple-system, Arial, sans-serif; color:var(--ink); }
+body.lay-full{ background:radial-gradient(120% 70% at 50% 0%, #16344c 0%, transparent 62%), var(--navy); }
+
+/* An OBS browser source that isn't being rendered stops advancing the
+   animation clock, so every entrance would freeze at its first frame and
+   the overlay would go to air blank. The watchdog in display.html sets
+   this class and the end states paint instead. */
+html.no-anim *{ animation:none !important; transition:none !important; }
+
+/* =====================================================================
+   STAGE
+   ===================================================================== */
+#stage{
+  position:absolute; inset:0;
+  display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
+}
+body.lay-full #stage{ justify-content:center; gap:calc(28px * var(--s)); }
+body.lay-vert #stage{ justify-content:center; gap:calc(22px * var(--s)); }
+
+/* =====================================================================
+   FIELD
+   ===================================================================== */
+#fieldwrap{ position:relative; display:flex; flex-direction:column; align-items:center; width:var(--fw); }
+#field{
+  display:block; image-rendering:pixelated; image-rendering:crisp-edges;
+  width:var(--fw); height:calc(124px * var(--px));
+}
+body.lay-vert #field{ height:calc(378px * var(--px)); }
+
+/* =====================================================================
+   CHYRON — down, distance, spot, score. Sits on top of the field so the
+   lower third reads as one object rather than two stacked strips.
+   ===================================================================== */
+#chyron{
+  display:flex; align-items:stretch; width:100%; overflow:hidden;
+  font-family:var(--pixel); background:var(--deep);
+  border:var(--u) solid #05101a; border-bottom-width:0;
+  box-shadow:inset 0 3px 0 rgba(255,255,255,.07);
+}
+#chyron .cell{
+  display:flex; flex-direction:column; justify-content:center; gap:calc(7px * var(--s));
+  padding:calc(13px * var(--s)) calc(20px * var(--s));
+  border-right:2px solid rgba(34,65,92,.75);
+  min-width:0; overflow:hidden;
+}
+#chyron .cell:last-child{ border-right:0; }
+#chyron .k{ font-size:calc(13px * var(--s)); color:var(--dim); line-height:1; }
+#chyron .v{ font-size:calc(28px * var(--s)); color:var(--ink); line-height:1; white-space:nowrap; }
+#chyron .v.gold{ color:var(--gold); }
+#chyron .grow{ flex:1; }
+#chyron .down .v{ color:var(--gold); }
+#chyron .lifelines{ flex-direction:row; align-items:center; gap:calc(9px * var(--s)); }
+#chyron .ll{
+  font-size:calc(13px * var(--s)); padding:calc(7px * var(--s)) calc(9px * var(--s));
+  border:2px solid var(--edge); color:var(--dim); line-height:1;
+}
+#chyron .ll.live{ border-color:var(--gold); color:var(--gold); background:rgba(251,204,122,.10); }
+#chyron .ll.used{ opacity:.26; }
+#chyron .team.poss{ background:rgba(251,204,122,.13); }
+#chyron .team .v{ display:flex; align-items:center; gap:calc(10px * var(--s)); }
+#chyron .team .swatch{ width:calc(18px * var(--s)); height:calc(18px * var(--s)); border:2px solid #05101a; }
+body.lay-vert #chyron{ flex-wrap:wrap; }
+body.lay-vert #chyron .cell{ padding:calc(11px * var(--s)) calc(14px * var(--s)); flex:1; }
+body.lay-vert #chyron .lifelines.wide{
+  flex:0 0 100%; justify-content:center; border-right:0;
+  border-top:2px solid rgba(34,65,92,.75);
+}
+
+/* =====================================================================
+   PLAY CALL — the big result that slams over the field
+   ===================================================================== */
+#playcall{
+  position:absolute; left:50%; top:52%; transform:translate(-50%,-50%);
+  display:none; text-align:center; pointer-events:none; z-index:5; width:100%;
+}
+#playcall.on{ display:block; animation:slam 240ms steps(4) both; }
+@keyframes slam{ from{ transform:translate(-50%,-50%) scale(1.5); opacity:0; } to{ transform:translate(-50%,-50%) scale(1); opacity:1; } }
+#playcall .label{
+  display:inline-block;
+  font-family:var(--pixel); font-size:calc(52px * var(--s)); line-height:1.15;
+  color:var(--gold); padding:calc(16px * var(--s)) calc(26px * var(--s));
+  background:rgba(7,20,32,.93); border:var(--u) solid #05101a;
+  box-shadow:0 0 0 var(--u) var(--gold), 0 8px 0 rgba(0,0,0,.5);
+}
+#playcall .yards{
+  font-family:var(--pixel); font-size:calc(38px * var(--s)); margin-top:calc(14px * var(--s));
+  color:var(--ink); text-shadow:0 4px 0 #05101a;
+}
+#playcall.bad .label{ color:#ff9a92; box-shadow:0 0 0 var(--u) var(--red), 0 8px 0 rgba(0,0,0,.5); }
+#playcall.big .label{ color:#0d1f2d; background:var(--gold); }
+#playcall.score .label{ color:#0d1f2d; background:var(--gold); font-size:calc(72px * var(--s)); }
+body.lay-vert #playcall .label{ font-size:calc(40px * var(--s)); }
+body.lay-vert #playcall.score .label{ font-size:calc(54px * var(--s)); }
+
+/* =====================================================================
+   QUESTION CARD — Millionaire's shape, 8-bit'd
+   ===================================================================== */
+#qcard{
+  width:var(--fw); background:rgba(7,20,32,.95);
+  border:var(--u) solid #05101a;
+  box-shadow:inset 0 0 0 2px rgba(251,204,122,.28), 0 8px 0 rgba(0,0,0,.45);
+  padding:calc(26px * var(--s)); display:none;
+}
+#qcard.on{ display:block; }
+body.lay-lower #qcard{ margin-bottom:calc(14px * var(--s)); }
+
+#qhead{ display:flex; align-items:center; justify-content:space-between; margin-bottom:calc(16px * var(--s)); }
+#qhead .tier{
+  font-family:var(--pixel); font-size:calc(14px * var(--s)); color:var(--navy);
+  background:var(--gold); padding:calc(7px * var(--s)) calc(11px * var(--s)); line-height:1;
+}
+#qhead .tier.t2{ background:#7fc7ff; } #qhead .tier.t3{ background:#ff8b82; }
+#qhead .drive{ font-family:var(--pixel); font-size:calc(14px * var(--s)); color:var(--dim); line-height:1; }
+
+/* clock: a segmented pixel meter, not a spinning dial */
+#clockbar{
+  height:calc(16px * var(--s)); background:#0d2032; border:2px solid #05101a;
+  display:flex; gap:2px; padding:2px; margin-bottom:calc(18px * var(--s));
+}
+#clockbar i{ flex:1; background:var(--green); }
+#clockbar i.off{ background:#16324a; }
+#clockbar.warn i:not(.off){ background:var(--gold); }
+#clockbar.hot i:not(.off){ background:var(--red); animation:hotpulse 300ms steps(2) infinite; }
+#clockbar.hide{ visibility:hidden; }
+@keyframes hotpulse{ 0%{ opacity:1; } 100%{ opacity:.4; } }
+
+/* Bebas Neue has no lowercase glyphs, so anything mixed-case falls back
+   mid-word and the card reads like two fonts fighting. Uppercase is the
+   broadcast look anyway. --qf is set per question by the auto-fit. */
+#qtext{
+  font-family:var(--disp); font-size:calc(62px * var(--s) * var(--qf, 1)); line-height:1.0;
+  letter-spacing:.5px; text-transform:uppercase;
+  color:var(--ink); text-align:center; margin-bottom:calc(22px * var(--s));
+  text-shadow:0 4px 0 #05101a;
+}
+body.lay-vert #qtext{ font-size:calc(54px * var(--s) * var(--qf, 1)); }
+
+#choices{ display:grid; grid-template-columns:1fr 1fr; gap:calc(12px * var(--s)); }
+body.lay-vert #choices{ grid-template-columns:1fr; gap:calc(10px * var(--s)); }
+.ch{
+  display:flex; align-items:center; gap:calc(14px * var(--s));
+  padding:calc(13px * var(--s)) calc(18px * var(--s));
+  background:#0f2740; border:2px solid #2c5a80;
+  clip-path:polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+  transition:background 120ms steps(2), color 120ms steps(2);
+}
+.ch .key{ font-family:var(--pixel); font-size:calc(22px * var(--s)); color:var(--gold); min-width:calc(34px * var(--s)); line-height:1; }
+.ch .txt{ font-family:var(--disp); font-size:calc(36px * var(--s) * var(--cf, 1)); line-height:1.03; letter-spacing:.4px; text-transform:uppercase; }
+.ch.gone{ opacity:.10; }
+.ch.lock{ background:var(--gold2); color:#0d1f2d; animation:lockpulse 400ms steps(2) infinite; }
+.ch.lock .key{ color:#0d1f2d; }
+@keyframes lockpulse{ 0%{ background:var(--gold2); } 100%{ background:#c1861c; } }
+.ch.right{ background:var(--green); color:#052416; animation:none; }
+.ch.right .key{ color:#052416; }
+.ch.wrong{ background:var(--red); color:#2b0705; animation:none; }
+.ch.wrong .key{ color:#2b0705; }
+
+/* =====================================================================
+   TITLE PLATE + BANNER
+   ===================================================================== */
+#plate{ display:none; text-align:center; }
+#plate.on{ display:block; }
+#plate .kick{ font-family:var(--pixel); font-size:calc(20px * var(--s)); color:var(--gold); letter-spacing:3px; }
+#plate .name{ font-family:var(--pixel); font-size:calc(58px * var(--s)); color:var(--ink); margin-top:calc(18px * var(--s)); text-shadow:0 6px 0 #05101a; line-height:1.25; }
+#plate .sub{ font-family:var(--disp); font-size:calc(40px * var(--s)); color:var(--dim); margin-top:calc(14px * var(--s)); letter-spacing:1px; text-transform:uppercase; }
+body.lay-vert #plate .name{ font-size:calc(40px * var(--s)); }
+
+#banner{
+  display:none; width:var(--fw); text-transform:uppercase;
+  font-family:var(--pixel); font-size:calc(34px * var(--s)); text-align:center;
+  padding:calc(18px * var(--s)); background:var(--gold); color:var(--navy);
+  border:var(--u) solid #05101a; margin-bottom:calc(12px * var(--s)); line-height:1.3;
+}
+body.lay-vert #banner{ font-size:calc(26px * var(--s)); }
+#banner.on{ display:block; }
+#banner.bad{ background:var(--red); color:#fff; }
+
+#diag{
+  position:fixed; left:8px; bottom:6px; font-family:'DM Mono',monospace; font-size:11px;
+  color:rgba(143,171,196,.5); pointer-events:none;
+}
+body.clean #diag{ display:none; }
+
+#soundzone{
+  position:fixed; right:12px; top:12px; z-index:40; cursor:pointer;
+  font-family:'DM Mono',monospace; font-size:12px; color:var(--dim);
+  background:rgba(7,20,32,.9); border:2px dashed var(--edge); padding:10px 14px; line-height:1.6;
+}
+#soundzone.hide{ display:none; }
+#soundzone b{ color:var(--gold); }
