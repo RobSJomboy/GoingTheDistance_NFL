@@ -35,116 +35,192 @@ const RELAYS = [
    zone: the defense stiffens the closer you get, same as Millionaire's
    ladder getting nastier near the top.
    ===================================================================== */
+/* =====================================================================
+   SOURCES
+
+   Every question in the bank carries a key into this table, and the control
+   page prints the citation under the question as it is served. Each one was
+   checked against the cited page in August 2026 before it went in — the
+   first cut of this bank was written from memory and two questions were
+   wrong, which is exactly the failure mode a live taping cannot absorb.
+
+   Records move. Re-check the record questions before a taping; the ones
+   most likely to shift are the single-season and career leaders, the
+   "never been to a Super Bowl" question, and anything naming a current
+   coach or a recent draft.
+   ===================================================================== */
+const SOURCES = {
+  rules:        ['American football rules — Wikipedia', 'https://en.wikipedia.org/wiki/American_football_rules'],
+  sbchamps:     ['List of Super Bowl champions — Wikipedia', 'https://en.wikipedia.org/wiki/List_of_Super_Bowl_champions'],
+  sblx:         ['Super Bowl LX — ESPN', 'https://www.espn.com/nfl/story/_/id/47822193/2026-super-bowl-lx-patriots-seahawks-live-highlights-results'],
+  sb1:          ['Packers beat Chiefs in first Super Bowl — HISTORY', 'https://www.history.com/this-day-in-history/january-15/packers-beat-chiefs-in-first-super-bowl'],
+  superbowl:    ['Super Bowl — Wikipedia', 'https://en.wikipedia.org/wiki/Super_Bowl'],
+  sbmvp:        ['Super Bowl MVP Award — Wikipedia', 'https://en.wikipedia.org/wiki/Super_Bowl_Most_Valuable_Player_Award'],
+  montana:      ['Joe Montana — Wikipedia', 'https://en.wikipedia.org/wiki/Joe_Montana'],
+  brady:        ['Tom Brady — Wikipedia', 'https://en.wikipedia.org/wiki/Tom_Brady'],
+  brady199:     ["Brady's 199th overall selection — Patriots.com", 'https://www.patriots.com/video/25th-anniversary-of-tom-brady-s-199-overall-draft-selection-by-the-patriots-in-2000-nfl-draft'],
+  records:      ['List of NFL records (individual) — Wikipedia', 'https://en.wikipedia.org/wiki/List_of_National_Football_League_records_(individual)'],
+  qbrec:        ['List of NFL quarterback records — Wikipedia', 'https://en.wikipedia.org/wiki/List_of_National_Football_League_quarterback_records'],
+  sacks:        ['NFL career sacks leaders — Wikipedia', 'https://en.wikipedia.org/wiki/List_of_National_Football_League_career_sacks_leaders'],
+  intlead:      ['NFL interceptions leaders — Wikipedia', 'https://en.wikipedia.org/wiki/List_of_National_Football_League_annual_interceptions_leaders'],
+  mvp:          ['AP NFL Most Valuable Player Award — Wikipedia', 'https://en.wikipedia.org/wiki/Associated_Press_NFL_Most_Valuable_Player_Award'],
+  coachwins:    ['NFL head coaches with 50 wins — Wikipedia', 'https://en.wikipedia.org/wiki/List_of_National_Football_League_head_coaches_with_50_wins'],
+  firstpick:    ['List of first overall NFL draft picks — Wikipedia', 'https://en.wikipedia.org/wiki/List_of_first_overall_National_Football_League_draft_picks'],
+  draft83:      ['1983 NFL draft — Wikipedia', 'https://en.wikipedia.org/wiki/1983_NFL_draft'],
+  rodgers05:    ['Aaron Rodgers drafted by the Packers, 2005 — WISN', 'https://www.wisn.com/article/look-back-aaron-rodgers-2005-nfl-draft-green-bay-packers/30587601'],
+  perfect:      ['The only perfect season — NFL.com', 'https://www.nfl.com/news/1972-miami-dolphins-the-inside-story-of-the-only-perfect-season-in-nfl-history'],
+  immaculate:   ['Immaculate Reception — Wikipedia', 'https://en.wikipedia.org/wiki/Immaculate_Reception'],
+  icebowl:      ['The Ice Bowl — Packers.com', 'https://www.packers.com/photos/on-this-day-54th-anniversary-of-the-ice-bowl'],
+  mcm:          ['Music City Miracle — Wikipedia', 'https://en.wikipedia.org/wiki/Music_City_Miracle'],
+  tuck:         ['Tuck Rule Game — Wikipedia', 'https://en.wikipedia.org/wiki/Tuck_Rule_Game'],
+  helmet:       ["Tyree's Helmet Catch — NFL.com", 'https://www.nfl.com/100/originals/100-greatest/detail.html?slug=plays-3'],
+  philly:       ['Philly Special — Eagles.com', 'https://www.philadelphiaeagles.com/news/nick-foles-trey-burton-eagles-philly-special-espn-30-documentary'],
+  comeback:     ['The Comeback — HISTORY', 'https://www.history.com/this-day-in-history/january-3/buffalo-bills-pull-off-greatest-comeback-in-nfl-history'],
+  mnf:          ['First Monday Night Football game — ClevelandBrowns.com', 'https://www.clevelandbrowns.com/photos/photos-a-look-back-at-the-first-monday-night-football-game'],
+  dorsett:      ["Dorsett's 99-yard run — ESPN", 'https://www.espn.com/blog/sportscenter/post/_/id/17411/this-day-in-sports-tony-dorsett-goes-99-yards-to-paydirt'],
+  cromartie:    ['Cromartie sets NFL record with 109-yard return — ESPN', 'https://www.espn.com/espn/wire?id=3094477&section=nfl'],
+  prater:       ['Longest field goal in NFL history — NFL.com', 'https://www.nfl.com/videos/longest-field-goal-in-nfl-history-matt-prater-makes-64-yard-field-goal-125657'],
+  buddyryan:    ['Buddy Ryan, architect of the 1985 Bears defense — ESPN', 'https://www.espn.com/nfl/story/_/id/16579465/former-nfl-coach-defensive-guru-buddy-ryan-dies-age-85'],
+  tuna:         ['Big Tuna — Wikipedia', 'https://en.wikipedia.org/wiki/Big_Tuna'],
+  raiders:      ['Raiders relocation to Las Vegas — Wikipedia', 'https://en.wikipedia.org/wiki/Oakland_Raiders_relocation_to_Las_Vegas'],
+  nflteams:     ['The 32 NFL clubs — NFL.com', 'https://www.nfl.com/teams/'],
+  teams:        ['NFL club pages — NFL.com', 'https://www.nfl.com/teams/'],
+  reid:         ['Andy Reid, head coach — Chiefs.com', 'https://www.chiefs.com/team/coaches-roster/andy-reid'],
+  packerstitles:['Green Bay Packers — Pro Football Hall of Fame', 'https://www.profootballhof.com/teams/green-bay-packers'],
+  thanksgiving: ['Thanksgiving and the NFL — Pro Football Hall of Fame', 'https://www.profootballhof.com/football-history/thanksgiving-and-the-nfl'],
+  towel:        ['The Terrible Towel — Steelers coverage, SI', 'https://www.si.com/nfl/steelers/news/pittsburgh-steelers-tease-new-terrible-towel-announcement'],
+  blackhole:    ["The Raiders' Black Hole — NBC Sports Bay Area", 'https://www.nbcsportsbayarea.com/nfl/ever-wonder-where-raiders-iconic-black-hole-fan-section-came-from/1319869/'],
+  cheesehead:   ['Cheesehead — Wikipedia', 'https://en.wikipedia.org/wiki/Cheesehead'],
+  americasteam: ["America's Team — Wikipedia", 'https://en.wikipedia.org/wiki/America%27s_Team'],
+  brownshelmet: ['Cleveland Browns helmet history — Dawgs By Nature', 'https://www.dawgsbynature.com/2019/1/17/18186569/cleveland-browns-helmet-history'],
+  payton:       ['Walter Payton — Pro-Football-Reference', 'https://www.pro-football-reference.com/players/P/PaytWa00.htm'],
+  perry:        ['William Perry — Wikipedia', 'https://en.wikipedia.org/wiki/William_Perry_(American_football)'],
+  lambeau:      ['Lambeau Field — Britannica', 'https://www.britannica.com/place/Lambeau-Field']
+};
+
 const BANK = {
 1:[
-"How many points is a touchdown worth, before the extra point?|6|7|3|2",
-"Which trophy goes to the Super Bowl champion?|The Vince Lombardi Trophy|The George Halas Trophy|The Pete Rozelle Trophy|The Lamar Hunt Trophy",
-"How many players from one team are on the field at once?|11|10|12|9",
-"Which team plays its home games at Lambeau Field?|Packers|Bears|Vikings|Lions",
-"How many yards is it from goal line to goal line?|100|110|90|120",
-"A field goal is worth how many points?|3|2|6|1",
-"Which franchise is nicknamed America's Team?|Cowboys|Patriots|Steelers|49ers",
-"Which player has won the most Super Bowls?|Tom Brady|Joe Montana|Charles Haley|Peyton Manning",
-"How many downs does an offense get to gain 10 yards?|4|3|5|2",
-"How many teams are in the NFL?|32|30|28|34",
-"A safety is worth how many points?|2|1|3|6",
-"Which team's helmet has no logo on it?|Browns|Raiders|Colts|Jets",
-"Which team hosts a Thanksgiving game every single year?|Lions|Bears|Giants|Eagles",
-"What do you call it when the quarterback is tackled behind the line?|A sack|A safety|A fumble|A pick",
-"Which team plays at Arrowhead Stadium?|Chiefs|Broncos|Cardinals|Titans",
-"The Terrible Towel belongs to which fan base?|Steelers|Ravens|Bengals|Browns",
-"How many minutes are in an NFL quarter?|15|12|20|10",
-"Which conference do the Green Bay Packers play in?|NFC|AFC|Both|Neither",
-"Cheeseheads are fans of which team?|Packers|Vikings|Bears|Chiefs",
-"Which position snaps the ball to start a play?|Center|Guard|Tackle|Fullback",
-"What color is the flag officials throw for a penalty?|Yellow|Red|Blue|White",
-"Which team has a horseshoe on its helmet?|Colts|Broncos|Texans|Rams",
-"Who has been the Chiefs head coach since 2013?|Andy Reid|Sean McVay|John Harbaugh|Mike Tomlin",
-"Which city do the Bengals call home?|Cincinnati|Cleveland|Columbus|Louisville",
-"Which team won Super Bowl LVIII in February 2024?|Chiefs|49ers|Eagles|Bengals",
-"The Super Bowl is played in which month?|February|January|March|December",
-"How many points is an extra point kick worth?|1|2|3|None of them",
-"Which team plays its home games in Foxborough, Massachusetts?|Patriots|Bills|Jets|Giants",
-"Which bird is the Philadelphia team named after?|The eagle|The falcon|The raven|The cardinal",
-"What is the line of scrimmage?|Where the ball is spotted|The goal line|The sideline|The 50-yard line"
+"How many points is a touchdown worth, before the extra point?|6|7|3|2|rules",
+"Which trophy goes to the Super Bowl champion?|The Vince Lombardi Trophy|The George Halas Trophy|The Pete Rozelle Trophy|The Lamar Hunt Trophy|sbchamps",
+"How many players from one team are on the field at once?|11|10|12|9|rules",
+"Which team plays its home games at Lambeau Field?|Packers|Bears|Vikings|Lions|teams",
+"How many yards is it from goal line to goal line?|100|110|90|120|rules",
+"A field goal is worth how many points?|3|2|6|1|rules",
+"Which franchise is nicknamed America's Team?|Cowboys|Patriots|Steelers|49ers|americasteam",
+"Which player has won the most Super Bowls?|Tom Brady|Joe Montana|Charles Haley|Peyton Manning|brady",
+"How many downs does an offense get to gain 10 yards?|4|3|5|2|rules",
+"How many teams are in the NFL?|32|30|28|34|nflteams",
+"A safety is worth how many points?|2|1|3|6|rules",
+"Which team's helmet has no logo on it?|Browns|Raiders|Colts|Jets|brownshelmet",
+"Which team hosts a Thanksgiving game every single year?|Lions|Bears|Giants|Eagles|thanksgiving",
+"What do you call it when the quarterback is tackled behind the line?|A sack|A safety|A fumble|A pick|rules",
+"Which team plays at Arrowhead Stadium?|Chiefs|Broncos|Cardinals|Titans|teams",
+"The Terrible Towel belongs to which fan base?|Steelers|Ravens|Bengals|Browns|towel",
+"How many minutes are in an NFL quarter?|15|12|20|10|rules",
+"Which conference do the Green Bay Packers play in?|NFC|AFC|Both|Neither|teams",
+"Cheeseheads are fans of which team?|Packers|Vikings|Bears|Chiefs|cheesehead",
+"Which position snaps the ball to start a play?|Center|Guard|Tackle|Fullback|rules",
+"What color is the flag officials throw for a penalty?|Yellow|Red|Blue|White|rules",
+"Which team has a horseshoe on its helmet?|Colts|Broncos|Texans|Rams|teams",
+"Who has been the Chiefs head coach since 2013?|Andy Reid|Sean McVay|John Harbaugh|Mike Tomlin|reid",
+"Which city do the Bengals call home?|Cincinnati|Cleveland|Columbus|Louisville|teams",
+"Which team won Super Bowl LVIII in February 2024?|Chiefs|49ers|Eagles|Bengals|sbchamps",
+"The Super Bowl is played in which month?|February|January|March|December|superbowl",
+"How many points is an extra point kick worth?|1|2|3|None of them|rules",
+"Which team plays its home games in Foxborough, Massachusetts?|Patriots|Bills|Jets|Giants|teams",
+"Which bird is the Philadelphia team named after?|The eagle|The falcon|The raven|The cardinal|teams",
+"What is the line of scrimmage?|Where the ball is spotted|The goal line|The sideline|The 50-yard line|rules",
+"Which team won Super Bowl LX in February 2026?|Seahawks|Patriots|Chiefs|Eagles|sblx"
 ],
 2:[
-"Who holds the single-season record for passing yards?|Peyton Manning|Tom Brady|Drew Brees|Patrick Mahomes",
-"Who holds the single-season record for passing touchdowns?|Peyton Manning|Tom Brady|Dan Marino|Aaron Rodgers",
-"Who is the NFL's all-time leading rusher?|Emmitt Smith|Walter Payton|Barry Sanders|Frank Gore",
-"Who holds the single-season rushing record with 2,105 yards?|Eric Dickerson|Adrian Peterson|O.J. Simpson|Jamal Lewis",
-"Which team finished the 2007 regular season 16-0?|Patriots|Colts|Packers|Steelers",
-"Which is the only team to go undefeated and win the Super Bowl?|The 1972 Dolphins|The 1985 Bears|The 2007 Patriots|The 1962 Packers",
-"Who made the Helmet Catch in Super Bowl XLII?|David Tyree|Mario Manningham|Plaxico Burress|Amani Toomer",
-"Who caught the Philly Special touchdown in Super Bowl LII?|Nick Foles|Zach Ertz|Trey Burton|Alshon Jeffery",
-"Who is the NFL's all-time leading scorer?|Adam Vinatieri|Morten Andersen|Gary Anderson|Justin Tucker",
-"Who holds the career record for receiving yards?|Jerry Rice|Terrell Owens|Randy Moss|Larry Fitzgerald",
-"Who is the official career sacks leader?|Bruce Smith|Reggie White|Kevin Greene|Deacon Jones",
-"Which team came back from 28-3 down to win Super Bowl LI?|Patriots|Falcons|Seahawks|Broncos",
-"Who has the most career passing yards?|Tom Brady|Drew Brees|Peyton Manning|Brett Favre",
-"Who threw the most career interceptions?|Brett Favre|George Blanda|Vinny Testaverde|Drew Bledsoe",
-"Which team drafted Aaron Rodgers in 2005?|Packers|49ers|Bears|Chargers",
-"Who went first overall in the 2024 NFL Draft?|Caleb Williams|Jayden Daniels|Drake Maye|Marvin Harrison Jr.",
-"Who went first overall in the 2023 NFL Draft?|Bryce Young|C.J. Stroud|Anthony Richardson|Will Levis",
-"Which franchise moved to Las Vegas in 2020?|Raiders|Chargers|Rams|Cardinals",
-"Which two teams played the 1967 Ice Bowl?|Packers and Cowboys|Bears and Vikings|Browns and Colts|Lions and Giants",
-"Who is the only Super Bowl MVP from the losing team?|Chuck Howley|Jake Scott|Harvey Martin|Ray Lewis",
-"Who has the most career rushing touchdowns?|Emmitt Smith|LaDainian Tomlinson|Marcus Allen|Walter Payton",
-"Which kicker made a 64-yard field goal for Denver in 2013?|Matt Prater|Justin Tucker|Sebastian Janikowski|Greg Zuerlein",
-"Which franchise has the most NFL championships all time?|Packers|Bears|Giants|Steelers",
-"Who threw the pass on the Immaculate Reception?|Terry Bradshaw|Franco Harris|Joe Greene|Rocky Bleier",
-"Which running back was nicknamed Sweetness?|Walter Payton|Barry Sanders|Gale Sayers|Earl Campbell",
-"Which Bears lineman was called The Refrigerator?|William Perry|Dan Hampton|Steve McMichael|Richard Dent",
-"In what year was the first Super Bowl played?|1967|1970|1963|1972",
-"Which team won the first Super Bowl?|Packers|Chiefs|Colts|Jets",
-"Who has the most career receiving touchdowns?|Jerry Rice|Randy Moss|Terrell Owens|Cris Carter",
-"Which head coach has the most career wins?|Don Shula|George Halas|Bill Belichick|Tom Landry",
-"Which team did Tom Brady win his seventh ring with?|Buccaneers|Patriots|Falcons|Chiefs",
-"Who was the last defensive player to win NFL MVP?|Lawrence Taylor|J.J. Watt|Ray Lewis|Alan Page",
-"Which quarterback threw seven touchdowns against the Raiders in 2013?|Nick Foles|Peyton Manning|Drew Brees|Tom Brady",
-"The Tuck Rule game was the Patriots against which team?|Raiders|Steelers|Rams|Titans",
-"Which fan section is known as the Black Hole?|The Raiders'|The Ravens'|The Jets'|The Bears'",
-"The Music City Miracle knocked out which team?|Bills|Colts|Jaguars|Dolphins"
+"Who holds the single-season record for passing yards?|Peyton Manning|Tom Brady|Drew Brees|Patrick Mahomes|qbrec",
+"Who holds the single-season record for passing touchdowns?|Peyton Manning|Tom Brady|Dan Marino|Aaron Rodgers|qbrec",
+"Who is the NFL's all-time leading rusher?|Emmitt Smith|Walter Payton|Barry Sanders|Frank Gore|records",
+"Who holds the single-season rushing record with 2,105 yards?|Eric Dickerson|Adrian Peterson|O.J. Simpson|Jamal Lewis|records",
+"Which team finished the 2007 regular season 16-0?|Patriots|Colts|Packers|Steelers|perfect",
+"Which is the only team to go undefeated and win the Super Bowl?|The 1972 Dolphins|The 1985 Bears|The 2007 Patriots|The 1962 Packers|perfect",
+"Who made the Helmet Catch in Super Bowl XLII?|David Tyree|Mario Manningham|Plaxico Burress|Amani Toomer|helmet",
+"Who caught the Philly Special touchdown in Super Bowl LII?|Nick Foles|Zach Ertz|Trey Burton|Alshon Jeffery|philly",
+"Who is the NFL's all-time leading scorer?|Adam Vinatieri|Morten Andersen|Gary Anderson|Justin Tucker|records",
+"Who holds the career record for receiving yards?|Jerry Rice|Terrell Owens|Randy Moss|Larry Fitzgerald|records",
+"Who is the official career sacks leader?|Bruce Smith|Reggie White|Kevin Greene|Deacon Jones|sacks",
+"Which team came back from 28-3 down to win Super Bowl LI?|Patriots|Falcons|Seahawks|Broncos|sbchamps",
+"Who has the most career passing yards?|Tom Brady|Drew Brees|Peyton Manning|Brett Favre|qbrec",
+"Who threw the most career interceptions?|Brett Favre|George Blanda|Vinny Testaverde|Drew Bledsoe|qbrec",
+"Which team drafted Aaron Rodgers in 2005?|Packers|49ers|Bears|Chargers|rodgers05",
+"Who went first overall in the 2024 NFL Draft?|Caleb Williams|Jayden Daniels|Drake Maye|Marvin Harrison Jr.|firstpick",
+"Who went first overall in the 2023 NFL Draft?|Bryce Young|C.J. Stroud|Anthony Richardson|Will Levis|firstpick",
+"Which franchise moved to Las Vegas in 2020?|Raiders|Chargers|Rams|Cardinals|raiders",
+"Which two teams played the 1967 Ice Bowl?|Packers and Cowboys|Bears and Vikings|Browns and Colts|Lions and Giants|icebowl",
+"Who is the only Super Bowl MVP from the losing team?|Chuck Howley|Jake Scott|Harvey Martin|Ray Lewis|sbmvp",
+"Who has the most career rushing touchdowns?|Emmitt Smith|LaDainian Tomlinson|Marcus Allen|Walter Payton|records",
+"Which kicker made a 64-yard field goal for Denver in 2013?|Matt Prater|Justin Tucker|Sebastian Janikowski|Greg Zuerlein|prater",
+"Which franchise has the most NFL championships all time?|Packers|Bears|Giants|Steelers|packerstitles",
+"Who threw the pass on the Immaculate Reception?|Terry Bradshaw|Franco Harris|Joe Greene|Rocky Bleier|immaculate",
+"Which running back was nicknamed Sweetness?|Walter Payton|Barry Sanders|Gale Sayers|Earl Campbell|payton",
+"Which Bears lineman was called The Refrigerator?|William Perry|Dan Hampton|Steve McMichael|Richard Dent|perry",
+"In what year was the first Super Bowl played?|1967|1970|1963|1972|sb1",
+"Which team won the first Super Bowl?|Packers|Chiefs|Colts|Jets|sb1",
+"Who has the most career receiving touchdowns?|Jerry Rice|Randy Moss|Terrell Owens|Cris Carter|records",
+"Which head coach has the most career wins?|Don Shula|George Halas|Bill Belichick|Tom Landry|coachwins",
+"Which team did Tom Brady win his seventh ring with?|Buccaneers|Patriots|Falcons|Chiefs|sbchamps",
+"Who was the last defensive player to win NFL MVP?|Lawrence Taylor|J.J. Watt|Ray Lewis|Alan Page|mvp",
+"Which quarterback threw seven touchdowns against the Raiders in 2013?|Nick Foles|Peyton Manning|Drew Brees|Tom Brady|qbrec",
+"The Tuck Rule game was the Patriots against which team?|Raiders|Steelers|Rams|Titans|tuck",
+"Which fan section is known as the Black Hole?|The Raiders'|The Ravens'|The Jets'|The Bears'|blackhole",
+"The Music City Miracle knocked out which team?|Bills|Colts|Jaguars|Dolphins|mcm",
+"Which team took Cam Ward first overall in the 2025 draft?|Titans|Browns|Giants|Raiders|firstpick",
+"Which team had the first overall pick in the 2026 draft?|Raiders|Titans|Browns|Jets|firstpick"
 ],
 3:[
-"Who holds the single-game rushing record with 296 yards?|Adrian Peterson|Jamal Lewis|Corey Dillon|Walter Payton",
-"Who caught the Immaculate Reception?|Franco Harris|John Fuqua|Lynn Swann|Rocky Bleier",
-"Which player caught a pass in 274 straight games?|Jerry Rice|Tony Gonzalez|Larry Fitzgerald|Marvin Harrison",
-"Tom Brady was drafted with which overall pick in 2000?|199th|99th|155th|233rd",
-"Who holds the single-game passing yards record with 554?|Norm Van Brocklin|Warren Moon|Ben Roethlisberger|Matt Schaub",
-"Who was the first kicker named NFL MVP?|Mark Moseley|Jan Stenerud|Garo Yepremian|Lou Groza",
-"Which team drafted Dan Marino in 1983?|Dolphins|Steelers|Jets|Bills",
-"How many quarterbacks went in the first round of the 1983 draft?|Six|Four|Three|Eight",
-"Who set the single-season receptions record with 149?|Michael Thomas|Marvin Harrison|Antonio Brown|Cooper Kupp",
-"Who has the most career interceptions by a defender?|Paul Krause|Emlen Tunnell|Rod Woodson|Dick Lane",
-"Which team blew a 35-3 lead in a 1993 playoff game?|Oilers|Chargers|Broncos|Raiders",
-"Who played the most seasons in NFL history with 26?|George Blanda|Tom Brady|Morten Andersen|Adam Vinatieri",
-"Who was the first Black quarterback to win a Super Bowl?|Doug Williams|Warren Moon|Randall Cunningham|Steve McNair",
-"Who has the most career fumbles?|Brett Favre|Warren Moon|Dave Krieg|Kerry Collins",
-"Whose 99-yard run in 1983 is the longest run from scrimmage ever?|Tony Dorsett|Ahman Green|Derrick Henry|Bo Jackson",
-"Which of these franchises has never played in a Super Bowl?|Lions|Bengals|Panthers|Falcons",
-"Who coordinated the 1985 Bears defense?|Buddy Ryan|Mike Ditka|Vince Tobin|Dave Wannstedt",
-"What is the fewest points a team has scored in a Super Bowl?|3|0|6|7",
-"Who passed Michael Vick for the most career rushing yards by a quarterback?|Lamar Jackson|Josh Allen|Russell Wilson|Cam Newton",
-"Which quarterback won back-to-back MVPs in 2020 and 2021?|Aaron Rodgers|Patrick Mahomes|Tom Brady|Josh Allen",
-"Which coach is nicknamed The Big Tuna?|Bill Parcells|Bill Cowher|Marty Schottenheimer|Jimmy Johnson",
-"Whose 109-yard return in 2007 tied the longest play in NFL history?|Antonio Cromartie|Devin Hester|Cordarrelle Patterson|Josh Cribbs",
-"Which team won Super Bowl V, the first after the AFL-NFL merger?|Colts|Cowboys|Chiefs|Vikings",
-"Who won Super Bowl MVP three times in the 1980s?|Joe Montana|Terry Bradshaw|John Elway|Phil Simms",
-"How many yards deep is an NFL end zone?|10|12|15|8",
-"Which team hosted the first Monday Night Football game in 1970?|Browns|Jets|Chiefs|Cowboys",
-"Which quarterback started 297 straight regular season games?|Brett Favre|Peyton Manning|Eli Manning|Philip Rivers",
-"Ernie Nevers, Dub Jones and Gale Sayers all share which record?|Six touchdowns in a game|Five interceptions in a game|Four field goals in a quarter|Three safeties in a season",
-"Who was the first overall pick of the 1998 NFL Draft?|Peyton Manning|Ryan Leaf|Charles Woodson|Randy Moss",
-"Which stadium is nicknamed The Frozen Tundra?|Lambeau Field|Soldier Field|Highmark Stadium|Arrowhead Stadium"
+"Who holds the single-game rushing record with 296 yards?|Adrian Peterson|Jamal Lewis|Corey Dillon|Walter Payton|records",
+"Who caught the Immaculate Reception?|Franco Harris|John Fuqua|Lynn Swann|Rocky Bleier|immaculate",
+"Which player caught a pass in 274 straight games?|Jerry Rice|Tony Gonzalez|Larry Fitzgerald|Marvin Harrison|records",
+"Tom Brady was drafted with which overall pick in 2000?|199th|99th|155th|233rd|brady199",
+"Who holds the single-game passing yards record with 554?|Norm Van Brocklin|Warren Moon|Ben Roethlisberger|Matt Schaub|qbrec",
+"Who is the only kicker ever named NFL MVP?|Mark Moseley|Jan Stenerud|Garo Yepremian|Lou Groza|mvp",
+"Which team drafted Dan Marino in 1983?|Dolphins|Steelers|Jets|Bills|draft83",
+"How many quarterbacks went in the first round of the 1983 draft?|Six|Four|Three|Eight|draft83",
+"Who set the single-season receptions record with 149?|Michael Thomas|Marvin Harrison|Antonio Brown|Cooper Kupp|records",
+"Who has the most career interceptions by a defender?|Paul Krause|Emlen Tunnell|Rod Woodson|Dick Lane|intlead",
+"Which team blew a 35-3 lead in a 1993 playoff game?|Oilers|Chargers|Broncos|Raiders|comeback",
+"Who played the most seasons in NFL history with 26?|George Blanda|Tom Brady|Morten Andersen|Adam Vinatieri|records",
+"Who was the first Black quarterback to win a Super Bowl?|Doug Williams|Warren Moon|Randall Cunningham|Steve McNair|sbmvp",
+"Who has the most career fumbles?|Brett Favre|Warren Moon|Dave Krieg|Kerry Collins|qbrec",
+"Whose 99-yard run in 1983 is the longest run from scrimmage ever?|Tony Dorsett|Ahman Green|Derrick Henry|Bo Jackson|dorsett",
+"Which of these franchises has never played in a Super Bowl?|Lions|Bengals|Panthers|Falcons|sbchamps",
+"Who coordinated the 1985 Bears defense?|Buddy Ryan|Mike Ditka|Vince Tobin|Dave Wannstedt|buddyryan",
+"What is the fewest points a team has scored in a Super Bowl?|3|0|6|7|sbchamps",
+"Who passed Michael Vick for the most career rushing yards by a quarterback?|Lamar Jackson|Josh Allen|Russell Wilson|Cam Newton|qbrec",
+"Which quarterback won back-to-back MVPs in 2020 and 2021?|Aaron Rodgers|Patrick Mahomes|Tom Brady|Josh Allen|mvp",
+"Which coach is nicknamed The Big Tuna?|Bill Parcells|Bill Cowher|Marty Schottenheimer|Jimmy Johnson|tuna",
+"Whose 109-yard return in 2007 tied the longest play in NFL history?|Antonio Cromartie|Devin Hester|Cordarrelle Patterson|Josh Cribbs|cromartie",
+"Which team won Super Bowl V, the first after the AFL-NFL merger?|Colts|Cowboys|Chiefs|Vikings|sbchamps",
+"Who was the first player to win three Super Bowl MVP awards?|Joe Montana|Terry Bradshaw|John Elway|Phil Simms|montana",
+"How many yards deep is an NFL end zone?|10|12|15|8|rules",
+"Which team hosted the first Monday Night Football game in 1970?|Browns|Jets|Chiefs|Cowboys|mnf",
+"Which quarterback started 297 straight regular season games?|Brett Favre|Peyton Manning|Eli Manning|Philip Rivers|records",
+"Ernie Nevers, Dub Jones, Gale Sayers and Alvin Kamara share which record?|Six touchdowns in a game|Five interceptions in a game|Four field goals in a quarter|Three safeties in a season|records",
+"Who was the first overall pick of the 1998 NFL Draft?|Peyton Manning|Ryan Leaf|Charles Woodson|Randy Moss|firstpick",
+"Which stadium is nicknamed The Frozen Tundra?|Lambeau Field|Soldier Field|Highmark Stadium|Arrowhead Stadium|lambeau"
 ]
 };
 
 /* parse "text|right|w|w|w" into a record, keeping the right answer flagged */
+/* Built-in rows are "text|right|wrong|wrong|wrong|sourceKey" — the tier comes
+   from which list the row is in. Pasted rows use a tier number in slot 5 and
+   free text in slot 6 instead; see parseImport. */
 function parseRow(row, tier, i){
   const p = String(row).split('|').map(s => s.trim()).filter(s => s.length);
   if(p.length < 3) return null;
-  return { id:'b'+tier+'-'+i, tier:tier, text:p[0], right:p[1], wrong:p.slice(2, 5) };
+  return { id:'b'+tier+'-'+i, tier:tier, text:p[0], right:p[1], wrong:p.slice(2, 5), src:p[5] || null };
+}
+/* [label, url] for a question, or null if it came in without one */
+function cite(q){
+  if(!q || !q.src) return null;
+  const s = SOURCES[q.src];
+  if(s) return { label:s[0], url:s[1] };
+  return { label:String(q.src), url:null };
 }
 let POOL = [];
 function rebuildPool(extra){
@@ -166,7 +242,7 @@ function parseImport(text){
     let tier = 2;
     if(p.length >= 6 && /^[123]$/.test(p[5])){ tier = +p[5]; }
     if(p.length < 3 || !p[0] || !p[1]){ bad.push(i + 1); return; }
-    out.push({ tier:tier, text:p[0], right:p[1], wrong:p.slice(2, 5).filter(Boolean) });
+    out.push({ tier:tier, text:p[0], right:p[1], wrong:p.slice(2, 5).filter(Boolean), src:p[6] || null });
   });
   return { rows:out, bad:bad };
 }
@@ -191,7 +267,7 @@ function draw(tier, used){
       const choices = shuffle([q.right].concat(q.wrong).slice(0, 4));
       return {
         id:q.id, tier:q.tier, text:q.text,
-        choices:choices, correct:choices.indexOf(q.right)
+        choices:choices, correct:choices.indexOf(q.right), cite:cite(q)
       };
     }
   }
@@ -845,7 +921,7 @@ function distText(down, dist, los){
 function fgDistance(los){ return Math.round(100 - los + 17); }
 
 return {
-  RELAYS, BANK, POOL:() => POOL, rebuildPool, parseImport, draw, tierFor, shuffle,
+  RELAYS, BANK, SOURCES, cite, POOL:() => POOL, rebuildPool, parseImport, draw, tierFor, shuffle,
   resolve, FORCED, BANDS, MISS,
   drawField, SPR, PAL, teamPal, GEO, geo, xy, drawNum,
   CUES, playCue, initSound, dropFiles, clearClip, listClips, cueFromName,

@@ -105,6 +105,8 @@ button kbd{ font-family:'DM Mono',monospace; font-size:10px; opacity:.65; margin
 .copt.lock{ background:#3a2c0e; border-color:var(--gold); }
 .copt.gone{ opacity:.3; }
 .copt .tag{ margin-left:auto; font-family:'DM Mono',monospace; font-size:10px; color:var(--green); }
+#qcite a{ color:var(--gold); }
+#qcite .nosrc{ color:#ff9a92; }
 
 #clockRead{ font-family:'Press Start 2P',monospace; font-size:26px; color:var(--gold); }
 #bandRead{ font-family:'DM Mono',monospace; font-size:12px; color:var(--dim); }
@@ -200,6 +202,7 @@ button kbd{ font-family:'DM Mono',monospace; font-size:10px; opacity:.65; margin
       <div id="qtextC" class="empty">Nothing up yet. Hit SERVE QUESTION and read it out — the
         overlay puts the question and the four answers on screen and starts the clock.</div>
       <div class="copts" id="coptsC"></div>
+      <div id="qcite" class="hint" style="margin-top:10px"></div>
       <div class="row" style="margin-top:12px">
         <button id="revealBtn" class="gold big" disabled>REVEAL &amp; RUN THE PLAY<kbd>enter</kbd></button>
         <button id="timeUp" disabled>Time expired<kbd>T</kbd></button>
@@ -315,12 +318,15 @@ button kbd{ font-family:'DM Mono',monospace; font-size:10px; opacity:.65; margin
     <div class="row">
       <button id="bankReset">Reset used questions</button>
       <button id="bankToggle">Show the paste box</button>
+      <button id="bankExport">Copy the bank with sources</button>
       <span class="hint" id="bankHint"></span>
     </div>
     <div id="bankBox" style="display:none">
       <p class="hint" style="margin-bottom:8px">One a line, pipes between:
-        <span class="mono">question | right answer | wrong | wrong | wrong | tier</span> —
-        tier 1 plays early in the drive, 3 in the red zone. Leave the tier off and it lands in 2.</p>
+        <span class="mono">question | right answer | wrong | wrong | wrong | tier | source</span> —
+        tier 1 plays early in the drive, 3 in the red zone. Leave the tier off and it lands in 2.
+        The source is free text and shows on this page when the question is served; anything pasted
+        without one gets flagged in red so it can't quietly go to air unchecked.</p>
       <textarea id="bankText" rows="8" placeholder="Which team drafted Tom Brady?|Patriots|49ers|Browns|Jets|1"></textarea>
       <div class="row" style="margin-top:8px">
         <button id="bankLoad" class="gold">Load these</button>
@@ -431,7 +437,7 @@ function serve(){
   if(!q){ logLine('<span class="bad">the bank is empty — reset used questions</span>'); return; }
   S.used[q.id] = 1;
   S.q = { id:q.id, tier:q.tier, text:q.text, choices:q.choices, correct:q.correct,
-          lock:-1, reveal:false, gone:[], num:++S.qnum };
+          cite:q.cite, lock:-1, reveal:false, gone:[], num:++S.qnum };
   S.play = null; S.banner = { on:false, text:'', bad:false };
   fire('snap');
   startClock();
@@ -689,6 +695,7 @@ function renderQ(){
     t.textContent = 'Nothing up yet. Hit SERVE QUESTION and read it out — the overlay puts the question and the four answers on screen and starts the clock.';
     $('revealBtn').disabled = true; $('timeUp').disabled = true;
     $('bandRead').textContent = 'no question up';
+    $('qcite').innerHTML = '';
     return;
   }
   t.className = ''; t.textContent = S.q.text;
@@ -706,6 +713,10 @@ function renderQ(){
   });
   $('revealBtn').disabled = S.q.reveal;
   $('timeUp').disabled = S.q.reveal;
+  const ct = S.q.cite;
+  $('qcite').innerHTML = ct
+    ? 'source: ' + (ct.url ? '<a href="' + esc(ct.url) + '" target="_blank" rel="noopener">' + esc(ct.label) + '</a>' : esc(ct.label))
+    : '<span class="nosrc">no source on this one \u2014 it came in through the paste box without a citation</span>';
 }
 
 /* =====================================================================
@@ -758,7 +769,9 @@ $('muteBox').onchange = e => GTD.mute(e.target.checked);
 function poolNote(){
   const pool = GTD.POOL();
   const left = pool.filter(q => !S.used[q.id]).length;
-  $('poolNote').textContent = left + ' of ' + pool.length + ' left this taping';
+  const nosrc = pool.filter(q => !q.src).length;
+  $('poolNote').textContent = left + ' of ' + pool.length + ' left this taping' +
+    (nosrc ? ' \u00b7 ' + nosrc + ' with no source' : ' \u00b7 all cited');
   const byTier = [1, 2, 3].map(t => pool.filter(q => q.tier === t && !S.used[q.id]).length);
   $('bankHint').textContent = 'tier 1: ' + byTier[0] + ' · tier 2: ' + byTier[1] + ' · tier 3: ' + byTier[2];
 }
@@ -767,6 +780,20 @@ $('bankToggle').onclick = () => {
   const b = $('bankBox');
   b.style.display = b.style.display === 'none' ? 'block' : 'none';
   $('bankToggle').textContent = b.style.display === 'none' ? 'Show the paste box' : 'Hide the paste box';
+};
+/* Dump every question, its answer and its citation as TSV so the whole bank can
+   be read through in a doc before a taping rather than one at a time at the desk. */
+$('bankExport').onclick = () => {
+  const rows = [['tier', 'question', 'answer', 'source', 'url'].join('\t')];
+  GTD.POOL().forEach(q => {
+    const ct = GTD.cite(q);
+    rows.push([q.tier, q.text, q.right, ct ? ct.label : 'NO SOURCE', ct && ct.url ? ct.url : ''].join('\t'));
+  });
+  const tsv = rows.join('\n');
+  navigator.clipboard.writeText(tsv).then(() => {
+    $('bankExport').textContent = 'Copied ' + GTD.POOL().length + ' rows';
+    setTimeout(() => { $('bankExport').textContent = 'Copy the bank with sources'; }, 2200);
+  }).catch(() => prompt('Copy this:', tsv));
 };
 $('bankLoad').onclick = () => {
   const { rows, bad } = GTD.parseImport($('bankText').value);

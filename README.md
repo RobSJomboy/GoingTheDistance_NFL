@@ -144,18 +144,61 @@ box that appears top-right.
 
 ## Questions
 
-96 built in, split across the three tiers. **Spot-check them before a taping** — they're written
-from memory of the record book, and records move.
+**99 built in, and every one carries a citation.** The control page prints the source under the
+question as it serves it, so if a contestant argues the answer is on the screen in front of you.
+**Copy the bank with sources** in section 6 dumps all 99 as TSV — question, answer, source, URL —
+to read through in a doc before a taping.
 
-To use your own, open the paste box in section 6 and give it one a line:
+Every question was checked against its cited page in **August 2026**. The first cut of this bank
+was written from memory and the pass turned up two that were wrong:
+
+- *"Who won Super Bowl MVP three times in the 1980s?"* — Joe Montana's three came after Super
+  Bowls XVI, XIX and XXIV, and XXIV was played in **January 1990**. Re-cut to "Who was the first
+  player to win three Super Bowl MVP awards?", which is the claim the sources actually make.
+- *"Who was the first kicker named NFL MVP?"* — Mark Moseley is the **only** special-teams player
+  ever to win it, so "first" was quietly misleading. Reworded.
+
+One more was tightened rather than fixed: the six-touchdown-game question now names **Alvin
+Kamara** alongside Nevers, Dub Jones and Sayers, since he joined them in 2020 and leaving him out
+invites a correction on air.
+
+### Re-check these before a taping
+
+Records move, and a citation is only true as of the day it was checked. The ones most likely to
+shift: the single-season and career leaders, *"which of these has never played in a Super Bowl"*,
+anything naming a current head coach, and the recent-draft questions.
+
+### Your own questions
+
+Open the paste box in section 6 and give it one a line:
 
 ```
-question | right answer | wrong | wrong | wrong | tier
+question | right answer | wrong | wrong | wrong | tier | source
 ```
 
 The right answer always goes first and the four choices get shuffled when the question is
-served, so you never have to count letters. Tier is optional and defaults to 2. Loading your own
-replaces the built-in bank; **Back to the built-in bank** puts it back.
+served, so you never have to count letters. Tier is optional and defaults to 2. The source is
+free text — anything pasted **without** one gets flagged in red on the control page and counted in
+the header, so an unchecked question can't quietly go to air. Loading your own replaces the
+built-in bank; **Back to the built-in bank** puts it back.
+
+### Where the answers come from
+
+Every question points at one of these, and the key lives in `SOURCES` at the top of `gtd.js`:
+
+| Cluster | Source |
+|---|---|
+| Rules, scoring, field dimensions | [American football rules — Wikipedia](https://en.wikipedia.org/wiki/American_football_rules) |
+| Super Bowl winners, appearances, scores | [List of Super Bowl champions — Wikipedia](https://en.wikipedia.org/wiki/List_of_Super_Bowl_champions) |
+| Super Bowl MVPs | [Super Bowl MVP Award — Wikipedia](https://en.wikipedia.org/wiki/Super_Bowl_Most_Valuable_Player_Award) |
+| Career and single-season records | [List of NFL records (individual) — Wikipedia](https://en.wikipedia.org/wiki/List_of_National_Football_League_records_(individual)) |
+| Quarterback records | [List of NFL quarterback records — Wikipedia](https://en.wikipedia.org/wiki/List_of_National_Football_League_quarterback_records) |
+| Sacks | [NFL career sacks leaders — Wikipedia](https://en.wikipedia.org/wiki/List_of_National_Football_League_career_sacks_leaders) |
+| MVP voting | [AP NFL MVP Award — Wikipedia](https://en.wikipedia.org/wiki/Associated_Press_NFL_Most_Valuable_Player_Award) |
+| Coaching wins | [NFL head coaches with 50 wins — Wikipedia](https://en.wikipedia.org/wiki/List_of_National_Football_League_head_coaches_with_50_wins) |
+| Draft picks | [First overall picks — Wikipedia](https://en.wikipedia.org/wiki/List_of_first_overall_National_Football_League_draft_picks) · [1983 NFL draft](https://en.wikipedia.org/wiki/1983_NFL_draft) |
+| Famous plays and games | [Immaculate Reception](https://en.wikipedia.org/wiki/Immaculate_Reception) · [Music City Miracle](https://en.wikipedia.org/wiki/Music_City_Miracle) · [Tuck Rule Game](https://en.wikipedia.org/wiki/Tuck_Rule_Game) · [The Comeback](https://www.history.com/this-day-in-history/january-3/buffalo-bills-pull-off-greatest-comeback-in-nfl-history) · [Helmet Catch](https://www.nfl.com/100/originals/100-greatest/detail.html?slug=plays-3) · [Philly Special](https://www.philadelphiaeagles.com/news/nick-foles-trey-burton-eagles-philly-special-espn-30-documentary) · [Ice Bowl](https://www.packers.com/photos/on-this-day-54th-anniversary-of-the-ice-bowl) |
+| Clubs, venues, traditions | [NFL.com club pages](https://www.nfl.com/teams/) · [Pro Football Hall of Fame](https://www.profootballhof.com/) |
 
 ---
 
