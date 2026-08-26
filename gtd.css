@@ -22,11 +22,18 @@
   --px:4;                     /* field upscale — integer keeps pixels hard */
   --s:1;                      /* type scale */
   --u:4px;                    /* bevel unit */
-  --fw:calc(480px * var(--px));   /* field width, wide cut */
+  --fw-px:480; --fh-px:25;    /* the renderer's own logical size, set from JS */
+  --fw:calc(var(--fw-px) * 1px * var(--px));
+  --cw:.58;                   /* question card width, as a share of the field */
+  --cs:.78;                   /* question card type scale */
   --pixel:'Press Start 2P', 'DM Mono', monospace;
   --disp:'Bebas Neue', 'Arial Narrow', sans-serif;
 }
-body.lay-vert{ --fw:calc(270px * var(--px)); }
+
+/* The wide cut plays behind the contestants on a key, so the card stays out
+   of the way. The tall cut IS the screen, so it takes the full width. */
+body.lay-vert{ --cw:1; --cs:.94; }
+body.lay-full{ --cw:.74; --cs:.9; }
 
 *{ margin:0; padding:0; box-sizing:border-box; }
 html,body{ width:100%; height:100%; overflow:hidden; background:transparent; }
@@ -55,35 +62,37 @@ body.lay-vert #stage{ justify-content:center; gap:calc(22px * var(--s)); }
 #fieldwrap{ position:relative; display:flex; flex-direction:column; align-items:center; width:var(--fw); }
 #field{
   display:block; image-rendering:pixelated; image-rendering:crisp-edges;
-  width:var(--fw); height:calc(124px * var(--px));
+  width:var(--fw); height:calc(var(--fh-px) * 1px * var(--px));
 }
-body.lay-vert #field{ height:calc(378px * var(--px)); }
 
 /* =====================================================================
    CHYRON — down, distance, spot, score. Sits on top of the field so the
    lower third reads as one object rather than two stacked strips.
    ===================================================================== */
+/* The chyron is the top face of the same block the field sits on: hard top
+   bevel, no bottom border, so it reads as one solid object with the slab
+   rather than a caption stuck above a picture. */
 #chyron{
   display:flex; align-items:stretch; width:100%; overflow:hidden;
   font-family:var(--pixel); background:var(--deep);
   border:var(--u) solid #05101a; border-bottom-width:0;
-  box-shadow:inset 0 3px 0 rgba(255,255,255,.07);
+  box-shadow:inset 0 3px 0 rgba(255,255,255,.09), inset 0 -3px 0 rgba(0,0,0,.4);
 }
 #chyron .cell{
-  display:flex; flex-direction:column; justify-content:center; gap:calc(7px * var(--s));
-  padding:calc(13px * var(--s)) calc(20px * var(--s));
+  display:flex; flex-direction:column; justify-content:center; gap:calc(4px * var(--s));
+  padding:calc(8px * var(--s)) calc(16px * var(--s));
   border-right:2px solid rgba(34,65,92,.75);
   min-width:0; overflow:hidden;
 }
 #chyron .cell:last-child{ border-right:0; }
-#chyron .k{ font-size:calc(13px * var(--s)); color:var(--dim); line-height:1; }
-#chyron .v{ font-size:calc(28px * var(--s)); color:var(--ink); line-height:1; white-space:nowrap; }
+#chyron .k{ font-size:calc(11px * var(--s)); color:var(--dim); line-height:1; }
+#chyron .v{ font-size:calc(23px * var(--s)); color:var(--ink); line-height:1; white-space:nowrap; }
 #chyron .v.gold{ color:var(--gold); }
 #chyron .grow{ flex:1; }
 #chyron .down .v{ color:var(--gold); }
 #chyron .lifelines{ flex-direction:row; align-items:center; gap:calc(9px * var(--s)); }
 #chyron .ll{
-  font-size:calc(13px * var(--s)); padding:calc(7px * var(--s)) calc(9px * var(--s));
+  font-size:calc(11px * var(--s)); padding:calc(5px * var(--s)) calc(8px * var(--s));
   border:2px solid var(--edge); color:var(--dim); line-height:1;
 }
 #chyron .ll.live{ border-color:var(--gold); color:var(--gold); background:rgba(251,204,122,.10); }
@@ -101,53 +110,74 @@ body.lay-vert #chyron .lifelines.wide{
 /* =====================================================================
    PLAY CALL — the big result that slams over the field
    ===================================================================== */
+/* The wide field is only a hundred pixels tall now, so the play call can't
+   live on it — it slams in just above the slab, where there is room for it
+   to be the size the moment deserves. The tall cut has depth to spare and
+   keeps it on the field. */
 #playcall{
-  position:absolute; left:50%; top:52%; transform:translate(-50%,-50%);
-  display:none; text-align:center; pointer-events:none; z-index:5; width:100%;
+  position:absolute; left:50%; bottom:calc(100% + 22px); transform:translateX(-50%);
+  display:none; text-align:center; pointer-events:none; z-index:5; white-space:nowrap;
 }
+body.lay-vert #playcall{ bottom:auto; top:44%; transform:translate(-50%,-50%); }
 #playcall.on{ display:block; animation:slam 240ms steps(4) both; }
-@keyframes slam{ from{ transform:translate(-50%,-50%) scale(1.5); opacity:0; } to{ transform:translate(-50%,-50%) scale(1); opacity:1; } }
+@keyframes slam{ from{ transform:translateX(-50%) scale(1.5); opacity:0; } to{ transform:translateX(-50%) scale(1); opacity:1; } }
+body.lay-vert #playcall.on{ animation:slamv 240ms steps(4) both; }
+@keyframes slamv{ from{ transform:translate(-50%,-50%) scale(1.5); opacity:0; } to{ transform:translate(-50%,-50%) scale(1); opacity:1; } }
 #playcall .label{
   display:inline-block;
-  font-family:var(--pixel); font-size:calc(52px * var(--s)); line-height:1.15;
-  color:var(--gold); padding:calc(16px * var(--s)) calc(26px * var(--s));
+  font-family:var(--pixel); font-size:calc(38px * var(--s)); line-height:1.15;
+  color:var(--gold); padding:calc(13px * var(--s)) calc(20px * var(--s));
   background:rgba(7,20,32,.93); border:var(--u) solid #05101a;
   box-shadow:0 0 0 var(--u) var(--gold), 0 8px 0 rgba(0,0,0,.5);
 }
+/* The play call lands where the question card is sitting. That is the right
+   place for it — the question is over, the play is the moment — so the card
+   gets out of the way rather than the call being squeezed somewhere worse. */
+body.calling #qcard{ opacity:.14; transform:scale(.97); transition:opacity 160ms steps(3), transform 160ms steps(3); }
+body.lay-vert.calling #qcard{ opacity:1; transform:none; }
+/* the banner wants the same slot as the call, and on a score they say the
+   same thing anyway — so it waits its turn and lands as the call clears */
+body.calling #banner{ visibility:hidden; }
+body.lay-vert.calling #banner{ visibility:visible; }
+
 #playcall .yards{
-  font-family:var(--pixel); font-size:calc(38px * var(--s)); margin-top:calc(14px * var(--s));
+  font-family:var(--pixel); font-size:calc(26px * var(--s)); margin-top:calc(10px * var(--s));
   color:var(--ink); text-shadow:0 4px 0 #05101a;
 }
 #playcall.bad .label{ color:#ff9a92; box-shadow:0 0 0 var(--u) var(--red), 0 8px 0 rgba(0,0,0,.5); }
 #playcall.big .label{ color:#0d1f2d; background:var(--gold); }
-#playcall.score .label{ color:#0d1f2d; background:var(--gold); font-size:calc(72px * var(--s)); }
-body.lay-vert #playcall .label{ font-size:calc(40px * var(--s)); }
+#playcall.score .label{ color:#0d1f2d; background:var(--gold); font-size:calc(52px * var(--s)); }
+body.lay-vert #playcall .label{ font-size:calc(40px * var(--s)); white-space:normal; }
 body.lay-vert #playcall.score .label{ font-size:calc(54px * var(--s)); }
 
 /* =====================================================================
    QUESTION CARD — Millionaire's shape, 8-bit'd
    ===================================================================== */
+/* Sized independently of the field. It plays behind the contestants on the
+   key, so it wants to be readable and out of the way, not big. --s2 is the
+   card's own type scale so shrinking the card never touches the chyron. */
 #qcard{
-  width:var(--fw); background:rgba(7,20,32,.95);
+  --s2:calc(var(--s) * var(--cs));
+  width:calc(var(--fw) * var(--cw)); background:rgba(7,20,32,.95);
   border:var(--u) solid #05101a;
   box-shadow:inset 0 0 0 2px rgba(251,204,122,.28), 0 8px 0 rgba(0,0,0,.45);
-  padding:calc(26px * var(--s)); display:none;
+  padding:calc(22px * var(--s2)); display:none;
 }
 #qcard.on{ display:block; }
-body.lay-lower #qcard{ margin-bottom:calc(14px * var(--s)); }
+body.lay-lower #qcard{ margin-bottom:calc(18px * var(--s)); }
 
-#qhead{ display:flex; align-items:center; justify-content:space-between; margin-bottom:calc(16px * var(--s)); }
+#qhead{ display:flex; align-items:center; justify-content:space-between; margin-bottom:calc(14px * var(--s2)); }
 #qhead .tier{
-  font-family:var(--pixel); font-size:calc(14px * var(--s)); color:var(--navy);
-  background:var(--gold); padding:calc(7px * var(--s)) calc(11px * var(--s)); line-height:1;
+  font-family:var(--pixel); font-size:calc(13px * var(--s2)); color:var(--navy);
+  background:var(--gold); padding:calc(6px * var(--s2)) calc(10px * var(--s2)); line-height:1;
 }
 #qhead .tier.t2{ background:#7fc7ff; } #qhead .tier.t3{ background:#ff8b82; }
-#qhead .drive{ font-family:var(--pixel); font-size:calc(14px * var(--s)); color:var(--dim); line-height:1; }
+#qhead .drive{ font-family:var(--pixel); font-size:calc(13px * var(--s2)); color:var(--dim); line-height:1; }
 
 /* clock: a segmented pixel meter, not a spinning dial */
 #clockbar{
-  height:calc(16px * var(--s)); background:#0d2032; border:2px solid #05101a;
-  display:flex; gap:2px; padding:2px; margin-bottom:calc(18px * var(--s));
+  height:calc(13px * var(--s2)); background:#0d2032; border:2px solid #05101a;
+  display:flex; gap:2px; padding:2px; margin-bottom:calc(15px * var(--s2));
 }
 #clockbar i{ flex:1; background:var(--green); }
 #clockbar i.off{ background:#16324a; }
@@ -160,24 +190,24 @@ body.lay-lower #qcard{ margin-bottom:calc(14px * var(--s)); }
    mid-word and the card reads like two fonts fighting. Uppercase is the
    broadcast look anyway. --qf is set per question by the auto-fit. */
 #qtext{
-  font-family:var(--disp); font-size:calc(62px * var(--s) * var(--qf, 1)); line-height:1.0;
+  font-family:var(--disp); font-size:calc(62px * var(--s2) * var(--qf, 1)); line-height:1.0;
   letter-spacing:.5px; text-transform:uppercase;
-  color:var(--ink); text-align:center; margin-bottom:calc(22px * var(--s));
+  color:var(--ink); text-align:center; margin-bottom:calc(18px * var(--s2));
   text-shadow:0 4px 0 #05101a;
 }
-body.lay-vert #qtext{ font-size:calc(54px * var(--s) * var(--qf, 1)); }
+body.lay-vert #qtext{ font-size:calc(56px * var(--s2) * var(--qf, 1)); }
 
-#choices{ display:grid; grid-template-columns:1fr 1fr; gap:calc(12px * var(--s)); }
-body.lay-vert #choices{ grid-template-columns:1fr; gap:calc(10px * var(--s)); }
+#choices{ display:grid; grid-template-columns:1fr 1fr; gap:calc(10px * var(--s2)); }
+body.lay-vert #choices{ grid-template-columns:1fr; gap:calc(9px * var(--s2)); }
 .ch{
-  display:flex; align-items:center; gap:calc(14px * var(--s));
-  padding:calc(13px * var(--s)) calc(18px * var(--s));
+  display:flex; align-items:center; gap:calc(12px * var(--s2));
+  padding:calc(11px * var(--s2)) calc(15px * var(--s2));
   background:#0f2740; border:2px solid #2c5a80;
   clip-path:polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
   transition:background 120ms steps(2), color 120ms steps(2);
 }
-.ch .key{ font-family:var(--pixel); font-size:calc(22px * var(--s)); color:var(--gold); min-width:calc(34px * var(--s)); line-height:1; }
-.ch .txt{ font-family:var(--disp); font-size:calc(36px * var(--s) * var(--cf, 1)); line-height:1.03; letter-spacing:.4px; text-transform:uppercase; }
+.ch .key{ font-family:var(--pixel); font-size:calc(19px * var(--s2)); color:var(--gold); min-width:calc(30px * var(--s2)); line-height:1; }
+.ch .txt{ font-family:var(--disp); font-size:calc(36px * var(--s2) * var(--cf, 1)); line-height:1.03; letter-spacing:.4px; text-transform:uppercase; }
 .ch.gone{ opacity:.10; }
 .ch.lock{ background:var(--gold2); color:#0d1f2d; animation:lockpulse 400ms steps(2) infinite; }
 .ch.lock .key{ color:#0d1f2d; }
@@ -198,12 +228,12 @@ body.lay-vert #choices{ grid-template-columns:1fr; gap:calc(10px * var(--s)); }
 body.lay-vert #plate .name{ font-size:calc(40px * var(--s)); }
 
 #banner{
-  display:none; width:var(--fw); text-transform:uppercase;
-  font-family:var(--pixel); font-size:calc(34px * var(--s)); text-align:center;
-  padding:calc(18px * var(--s)); background:var(--gold); color:var(--navy);
+  display:none; width:calc(var(--fw) * var(--cw)); text-transform:uppercase;
+  font-family:var(--pixel); font-size:calc(24px * var(--s)); text-align:center;
+  padding:calc(13px * var(--s)); background:var(--gold); color:var(--navy);
   border:var(--u) solid #05101a; margin-bottom:calc(12px * var(--s)); line-height:1.3;
 }
-body.lay-vert #banner{ font-size:calc(26px * var(--s)); }
+body.lay-vert #banner{ font-size:calc(26px * var(--s)); width:var(--fw); }
 #banner.on{ display:block; }
 #banner.bad{ background:var(--red); color:#fff; }
 

@@ -276,6 +276,11 @@ button kbd{ font-family:'DM Mono',monospace; font-size:10px; opacity:.65; margin
       <label class="row" style="gap:6px;margin:0"><input type="checkbox" id="showQ" checked> question card on the overlay</label>
       <label class="row" style="gap:6px;margin:0"><input type="checkbox" id="showClock" checked> clock bar</label>
       <label class="row" style="gap:6px;margin:0"><input type="checkbox" id="showPlate"> title plate</label>
+      <select id="cardSize" style="width:auto">
+        <option value="s">Card: small</option>
+        <option value="m" selected>Card: medium</option>
+        <option value="l">Card: large</option>
+      </select>
     </div>
     <div class="row">
       <label class="f grow">BANNER <input type="text" id="bannerText" placeholder="leave empty for none"></label>
@@ -360,7 +365,7 @@ try{ BC = new BroadcastChannel('going_the_distance'); }catch(e){}
    ===================================================================== */
 const S = {
   mode:'drive', layout:'lower',
-  showQ:true, showClock:true, showPlate:false,
+  showQ:true, showClock:true, showPlate:false, card:'m',
   banner:{ on:false, text:'', bad:false },
   plate:{ kick:'JOMBOY MEDIA', name:'GOING THE\nDISTANCE', sub:'' },
   pal:{ offP:'#1b3a5c', offT:'#fbcc7a', defP:'#7c1d2b', defT:'#e8eef4', skin:'#b07a52' },
@@ -785,7 +790,7 @@ $('bankClear').onclick = () => { GTD.rebuildPool(); S.used = {}; poolNote(); $('
    ===================================================================== */
 function payload(n){
   const out = {
-    n:n || 0, mode:S.mode, layout:S.layout,
+    n:n || 0, mode:S.mode, layout:S.layout, card:S.card,
     plate:{ on:S.showPlate, kick:S.plate.kick, name:S.plate.name, sub:S.plate.sub },
     banner:S.banner,
     q:(S.showQ && S.q) ? {
@@ -1023,6 +1028,7 @@ $('h2hReset').onclick = () => {
 $('showQ').onchange = e => { S.showQ = e.target.checked; publish(true); };
 $('showClock').onchange = e => { S.showClock = e.target.checked; publish(true); };
 $('showPlate').onchange = e => { S.showPlate = e.target.checked; publish(true); };
+$('cardSize').onchange = e => { S.card = e.target.value; publish(true); };
 $('bannerOn').onclick = () => { S.banner = { on:true, text:$('bannerText').value.toUpperCase(), bad:false }; publish(true); };
 $('bannerOff').onclick = () => { S.banner = { on:false, text:'', bad:false }; publish(true); };
 $('layoutPick').onchange = e => { S.layout = e.target.value; loadPreview(); publish(true); };

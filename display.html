@@ -50,6 +50,18 @@ let SNAP = false;
 
 function diag(t){ $('diag').textContent = t; }
 
+/* The question card is sized independently of the field — it plays behind
+   the contestants on the key, so the host gets to say how much room it takes
+   without touching the lower third. */
+const CARD = { s:[0.48, 0.68], m:[0.58, 0.78], l:[0.74, 0.92] };
+const CARD_V = { s:[0.82, 0.82], m:[1, 0.94], l:[1, 1.06] };
+let cardSize = 'm';
+function applyCard(){
+  const t = (layout === 'vert' ? CARD_V : CARD)[cardSize] || CARD.m;
+  const r = document.documentElement.style;
+  r.setProperty('--cw', t[0]); r.setProperty('--cs', t[1]);
+}
+
 /* ---------------------------------------------------------------
    LAYOUT
 
@@ -62,7 +74,9 @@ let layout = URL_LAYOUT || (window.innerHeight > window.innerWidth ? 'vert' : 'l
 function setLayout(l){
   const v = ['lower','full','vert'].includes(l) ? l : 'lower';
   layout = v;
-  document.body.className = 'lay-' + v + (qs.get('dev') ? '' : ' clean');
+  const calling = document.body.classList.contains('calling');
+  document.body.className = 'lay-' + v + (qs.get('dev') ? '' : ' clean') + (calling ? ' calling' : '');
+  applyCard();
   autoScale();
 }
 /* Fit the art to whatever the source is actually sized at. The field only
@@ -71,18 +85,21 @@ function setLayout(l){
 let curPx = 4;
 function autoScale(){
   const W = window.innerWidth, H = window.innerHeight;
-  const fieldW = layout === 'vert' ? 270 : 480;
+  const G = GTD.geo(layout === 'vert' ? 'v' : 'h');
   const forced = +qs.get('px') || 0;
-  let px = forced || Math.max(1, Math.floor(W / fieldW));
-  if(layout === 'vert'){ while(px > 1 && 378 * px > H * 0.62) px--; }
-  else if(layout === 'full'){ while(px > 1 && 124 * px > H * 0.42) px--; }
+  let px = forced || Math.max(1, Math.floor(W / G.W));
+  if(layout === 'vert'){ while(px > 1 && G.H * px > H * 0.62) px--; }
+  else if(layout === 'full'){ while(px > 1 && G.H * px > H * 0.30) px--; }
   applyPx(px);
 }
 function applyPx(px){
   curPx = px;
-  const fieldW = layout === 'vert' ? 270 : 480;
+  const G = GTD.geo(layout === 'vert' ? 'v' : 'h');
+  const fieldW = G.W;
   const r = document.documentElement.style;
   r.setProperty('--px', px);
+  r.setProperty('--fw-px', G.W);
+  r.setProperty('--fh-px', G.H);
   const s = +qs.get('s') || (fieldW * px) / (layout === 'vert' ? 900 : 1920);
   r.setProperty('--s', Math.max(0.25, Math.min(1.8, s)).toFixed(3));
 }
@@ -163,7 +180,8 @@ function animSpec(){
       def:GTD.teamPal(GTD.PAL.def, ST.pal.defP, ST.pal.defT, ST.pal.skin)
     },
     ez:{ own:shade(mode === 'h2h' ? ST.h2h.teams[1].color : ST.pal.offP),
-         opp:shade(mode === 'h2h' ? ST.h2h.teams[0].color : ST.pal.defP) }
+         opp:shade(mode === 'h2h' ? ST.h2h.teams[0].color : ST.pal.defP) },
+    marks:mode === 'drive' ? (ST.drive.marks || [25, 50, 80]) : []
   };
 
   const dirFlip = mode === 'h2h' && ST.h2h.poss === 1;
@@ -218,9 +236,10 @@ function animSpec(){
 
 function defAt(yard, flip, frame){
   const y = Math.max(-2, Math.min(102, yard));
+  const deep = layout === 'vert' ? 9 : 3;   /* how far off the runner's line they stand */
   return [
-    { yard:y,        lane:-13, flip:!flip, frame:frame || 'runA' },
-    { yard:y + (flip ? 3 : -3), lane:12, flip:!flip, frame:frame || 'runB' }
+    { yard:y,                   lane:-deep, flip:!flip, frame:frame || 'runA' },
+    { yard:y + (flip ? 3 : -3), lane:deep,  flip:!flip, frame:frame || 'runB' }
   ];
 }
 
@@ -243,8 +262,7 @@ function frame(){
      payload never has to carry an animation value */
   if(flash > 0) flash = Math.max(0, flash - 0.035);
 
-  const ctx = GTD.drawField($('field'), animSpec());
-  drawMarks(ctx);
+  GTD.drawField($('field'), animSpec());
 
   if(anim){
     const t = now() - anim.t0;
@@ -271,19 +289,6 @@ setInterval(() => { if(now() - lastFrame > 400) frame(); }, 250);
   }, 1000);
 })();
 
-/* the safe havens, drawn as little gold pylons on the near sideline */
-function drawMarks(ctx){
-  if(ST.mode !== 'drive' || !ctx) return;
-  const view = layout === 'vert' ? 'v' : 'h';
-  const g = GTD.geo(view);
-  (ST.drive.marks || [25, 50, 80]).forEach(m => {
-    const p = GTD.xy(view, m, 1);
-    const passed = ST.drive.los >= m;
-    ctx.fillStyle = passed ? '#fbcc7a' : 'rgba(251,204,122,.32)';
-    if(view === 'v') ctx.fillRect(Math.round(p[0]) + 3, Math.round(p[1]) - 2, 5, 4);
-    else ctx.fillRect(Math.round(p[0]) - 2, Math.round(p[1]) + 3, 4, 5);
-  });
-}
 
 /* =====================================================================
    CHYRON
@@ -409,9 +414,10 @@ function showCall(p){
     p.td ? '7 POINTS' : p.fg ? '3 POINTS' :
     y > 0 ? '+' + y + ' YARDS' : y < 0 ? y + ' YARDS' : 'NO GAIN';
   el.className = 'on' + (p.td || p.fg ? ' score' : p.good === false ? ' bad' : (p.key === 'bomb' || p.key === 'big' ? ' big' : ''));
+  document.body.classList.add('calling');
   if(p.td || p.fg) flash = 1;
 }
-function hideCall(){ $('playcall').className = ''; }
+function hideCall(){ $('playcall').className = ''; document.body.classList.remove('calling'); }
 
 function renderPlate(){
   const p = ST.plate || {};
@@ -457,6 +463,7 @@ if(SOUND){
 function apply(st){
   if(!st || typeof st !== 'object') return;
   ['mode','plate','banner','q','drive','h2h','pal'].forEach(k => { if(st[k] !== undefined) ST[k] = st[k]; });
+  if(st.card && st.card !== cardSize){ cardSize = st.card; applyCard(); }
   if(st.layout && !URL_LAYOUT) setLayout(st.layout);
 
   if(st.clock){

@@ -317,35 +317,49 @@ const PAL = {
 function teamPal(base, primary, trim, skin){
   return { ...base, H:primary, J:primary, T:trim, S:skin || base.S };
 }
-
 const TURF_A = '#1d5c2e', TURF_B = '#24713a', LINE = '#dfeaf3';
 const EZ_FILL = '#0d1f2d', EZ_EDGE = '#fbcc7a', POST = '#f2c53d';
-const STAND = '#08131c';
+/* the extruded front face — the slab the turf sits on. The wide cut shows
+   the near sideline, so it gets a grass lip; the tall cut is looking down
+   the field at a barrier wall, so that one reads as concrete. */
+const WALL_TOP = '#3f8a52', WALL = '#123047', WALL_DARK = '#08131c', WALL_LIP = '#1d4a6b';
+const WALL_V_TOP = '#7f93a6', WALL_V = '#3b566e', WALL_V_DARK = '#08131c';
 
-/* Field geometry. Both views are the same 100 yards at 4 pixels a yard;
-   only the axis changes, so everything downstream just asks for xy(yard). */
+/* ---------------------------------------------------------------
+   FIELD GEOMETRY
+
+   The wide cut is a lower third and nothing more: 25 pixels tall, which
+   is exactly 100 on air at 4x. There is no room for stands or a second
+   row of numbers, so the yard markers live on the front face of the slab
+   where a sprite can never sit on top of them.
+
+   `kFar` is the forced perspective. The field is drawn as a trapezoid —
+   the far sideline is kFar as wide as the near one — so the yard lines
+   lean toward the middle and the whole thing reads as a solid block
+   sitting on the screen rather than a flat sticker.
+   --------------------------------------------------------------- */
 const GEO = {
-  /* Sized so an integer upscale lands on a broadcast frame: the wide field
-     is 480x124, which is exactly 1920 across at 4x; the tall one is 270x378,
-     exactly 810 across at 3x with room above it for the question card. */
-  h: { W:480, H:124, ppy:4, m:4,  ezd:36, fieldA:17, fieldB:117, standA:0, standB:13, base:104, numScale:2 },
-  v: { W:270, H:378, ppy:3, m:9,  ezd:30, fieldA:12, fieldB:258, standA:0, standB:0,  base:0,   numScale:2 }
+  h: { W:480, H:28,  ppy:4, m:4, ezd:36, fieldA:1,  fieldB:20,  wall:8, base:19, kFar:0.85, sprite:1, numScale:1 },
+  v: { W:270, H:378, ppy:3, m:9, ezd:30, fieldA:12, fieldB:258, wall:8, base:0,  kFar:0.82, sprite:2, numScale:2 }
 };
 
 function geo(view){ return GEO[view === 'v' ? 'v' : 'h']; }
 
-/* yard 0 is the offense's own goal line, yard 100 the one they are
-   driving at. Lateral t runs 0..1 across the width of the field. */
+/* yard 0 is the offense's own goal line, yard 100 the one they are driving
+   at; lateral t runs 0 (far sideline) to 1 (near sideline). Both axes are
+   perspective-corrected here so every caller downstream gets it for free. */
 function xy(view, yard, t){
   const g = geo(view);
   if(view === 'v'){
     const y = g.m + g.ezd + (100 - yard) * g.ppy;
-    const x = g.fieldA + t * (g.fieldB - g.fieldA);
-    return [x, y];
+    const cx = (g.fieldA + g.fieldB) / 2;
+    const s = 1 - (1 - g.kFar) * Math.max(0, Math.min(1.1, yard / 100));
+    return [cx + (g.fieldA + t * (g.fieldB - g.fieldA) - cx) * s, y];
   }
-  const x = g.m + g.ezd + yard * g.ppy;
   const y = g.fieldA + t * (g.fieldB - g.fieldA);
-  return [x, y];
+  const cx = g.m + g.ezd + 50 * g.ppy;
+  const s = g.kFar + (1 - g.kFar) * t;
+  return [cx + (g.m + g.ezd + yard * g.ppy - cx) * s, y];
 }
 
 function px(ctx, x, y, w, h, c){ ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); }
@@ -361,6 +375,12 @@ function drawSprite(ctx, art, x, y, scale, pal, flip){
     }
   }
 }
+/* a squashed shadow on the turf — cheapest way to sit a sprite in the
+   scene instead of on top of it */
+function shadow(ctx, x, y, w, scale){
+  px(ctx, x + scale, y, w - scale * 2, scale, 'rgba(0,0,0,.30)');
+  px(ctx, x + scale * 2, y - scale, w - scale * 4, scale, 'rgba(0,0,0,.18)');
+}
 
 function drawNum(ctx, str, x, y, scale, color){
   let cx = x;
@@ -374,157 +394,204 @@ function drawNum(ctx, str, x, y, scale, color){
   return cx - x - scale;
 }
 
-/* a stable per-pixel hash so the crowd doesn't shimmer every frame */
-function hash(i){ let h = (i * 2654435761) % 4294967296; return (h ^ (h >>> 13)) / 4294967296; }
-
-function ezRect(view, which){
-  const g = geo(view), len = 100 * g.ppy;
-  if(view === 'v'){
-    const w = g.fieldB - g.fieldA;
-    return which === 'opp' ? [g.fieldA, g.m, w, g.ezd] : [g.fieldA, g.m + g.ezd + len, w, g.ezd];
-  }
-  const h = g.fieldB - g.fieldA;
-  return which === 'opp' ? [g.m + g.ezd + len, g.fieldA, g.ezd, h] : [g.m, g.fieldA, g.ezd, h];
-}
+/* ---------------------------------------------------------------
+   Everything on the field is drawn a scanline at a time, because with
+   perspective a "rectangle" isn't one any more — a five-yard stripe is a
+   trapezoid and a yard line leans. Row by row keeps every edge on a whole
+   pixel, which is what stops the taper from turning into mush.
+   --------------------------------------------------------------- */
+function rowsOf(g){ return Math.max(1, g.fieldB - g.fieldA); }
 
 function lineAcross(ctx, view, yard, thick, color){
   const g = geo(view);
   if(view === 'v'){
-    const y = xy(view, yard, 0)[1];
-    px(ctx, g.fieldA, y - (thick >> 1), g.fieldB - g.fieldA, thick, color);
-  } else {
-    const x = xy(view, yard, 0)[0];
-    px(ctx, x - (thick >> 1), g.fieldA, thick, g.fieldB - g.fieldA, color);
+    const p0 = xy(view, yard, 0), p1 = xy(view, yard, 1);
+    px(ctx, p0[0], p0[1] - (thick >> 1), p1[0] - p0[0], thick, color);
+    return;
+  }
+  const rows = rowsOf(g);
+  for(let r = 0; r < rows; r++){
+    const x = xy(view, yard, r / (rows - 1 || 1))[0];
+    px(ctx, x - (thick >> 1), g.fieldA + r, thick, 1, color);
   }
 }
 
 function bandFill(ctx, view, ya, yb, color){
   const g = geo(view);
   if(view === 'v'){
-    const y0 = xy(view, yb, 0)[1], y1 = xy(view, ya, 0)[1];
-    px(ctx, g.fieldA, y0, g.fieldB - g.fieldA, y1 - y0, color);
-  } else {
-    const x0 = xy(view, ya, 0)[0], x1 = xy(view, yb, 0)[0];
-    px(ctx, x0, g.fieldA, x1 - x0, g.fieldB - g.fieldA, color);
+    const yTop = Math.round(xy(view, yb, 0)[1]), yBot = Math.round(xy(view, ya, 0)[1]);
+    for(let y = yTop; y < yBot; y++){
+      const yard = 100 - (y - g.m - g.ezd) / g.ppy;
+      const x0 = xy(view, yard, 0)[0], x1 = xy(view, yard, 1)[0];
+      px(ctx, x0, y, x1 - x0, 1, color);
+    }
+    return;
+  }
+  const rows = rowsOf(g);
+  for(let r = 0; r < rows; r++){
+    const t = r / (rows - 1 || 1);
+    const x0 = xy(view, ya, t)[0], x1 = xy(view, yb, t)[0];
+    px(ctx, x0, g.fieldA + r, x1 - x0, 1, color);
+  }
+}
+
+/* end zones are just the ten yards either side of the field */
+function ezYards(view){ const g = geo(view); return g.ezd / g.ppy; }
+function ezFill(ctx, view, which, color){
+  const d = ezYards(view);
+  if(which === 'opp') bandFill(ctx, view, 100, 100 + d, color);
+  else bandFill(ctx, view, -d, 0, color);
+}
+
+/* ---------------------------------------------------------------
+   THE SLAB
+
+   A front face under the near sideline, a lip where the two meet, and a
+   dark base line. That edge is doing most of the 3-D work — without it
+   the perspective just looks like a wonky rectangle.
+   --------------------------------------------------------------- */
+function slab(ctx, view, spec){
+  const g = geo(view), d = ezYards(view);
+  if(view === 'v'){
+    const y0 = Math.round(xy(view, -d, 0)[1]);
+    const x0 = xy(view, -d, 0)[0], x1 = xy(view, -d, 1)[0];
+    px(ctx, x0 - 3, y0, (x1 - x0) + 6, 2, WALL_V_TOP);
+    px(ctx, x0 - 3, y0 + 2, (x1 - x0) + 6, g.wall - 3, WALL_V);
+    px(ctx, x0 - 3, y0 + g.wall - 1, (x1 - x0) + 6, 1, WALL_V_DARK);
+    return;
+  }
+  const xL = xy(view, -d, 1)[0], xR = xy(view, 100 + d, 1)[0];
+  const y0 = g.fieldB;
+  px(ctx, xL, y0, xR - xL, 1, WALL_TOP);            /* grass lip catching the light */
+  px(ctx, xL, y0 + 1, xR - xL, g.wall - 2, WALL);
+  px(ctx, xL, y0 + g.wall - 1, xR - xL, 1, WALL_DARK);
+  /* the ends of the slab, wedged in as the field narrows away from you */
+  const rows = rowsOf(g);
+  for(let r = 0; r < rows; r++){
+    const t = r / (rows - 1 || 1);
+    const l = xy(view, -d, t)[0], rr = xy(view, 100 + d, t)[0];
+    px(ctx, l - 2, g.fieldA + r, 2, 1, WALL_LIP);
+    px(ctx, rr, g.fieldA + r, 2, 1, WALL_LIP);
+  }
+}
+
+/* yard markers ride on the front face where no sprite can ever cover them */
+function wallNumbers(ctx, view, color){
+  const g = geo(view);
+  if(view === 'v') return;
+  const sc = g.numScale, y = g.fieldB + 1 + Math.max(0, Math.floor((g.wall - 2 - 5 * sc) / 2));
+  for(let y10 = 10; y10 <= 90; y10 += 10){
+    const s = String(y10 <= 50 ? y10 : 100 - y10);
+    const w = s.length * 4 * sc - sc;
+    drawNum(ctx, s, xy(view, y10, 1)[0] - w / 2, y, sc, color);
   }
 }
 
 function goalPost(ctx, view, which, color){
-  const g = geo(view), len = 100 * g.ppy;
+  const g = geo(view), d = ezYards(view);
   if(view === 'v'){
-    const cx = Math.round((g.fieldA + g.fieldB) / 2);
-    const y = which === 'opp' ? g.m + 3 : g.m + g.ezd + len + g.ezd - 16;
-    /* head-on: crossbar plus two uprights */
-    px(ctx, cx - 15, y, 30, 2, color);
-    px(ctx, cx - 15, which === 'opp' ? y - 12 : y + 2, 2, 12, color);
-    px(ctx, cx + 13, which === 'opp' ? y - 12 : y + 2, 2, 12, color);
-    px(ctx, cx - 1, which === 'opp' ? y + 2 : y - 10, 2, 10, color);
-  } else {
-    const x = which === 'opp' ? g.m + g.ezd + len + g.ezd - 4 : g.m + 2;
-    const base = g.fieldB - 8, top = base - 26;
-    px(ctx, x, top + 8, 2, 20, color);          /* stem */
-    px(ctx, x - 5, top + 6, 12, 2, color);      /* crossbar */
-    px(ctx, x - 5, top - 6, 2, 12, color);
-    px(ctx, x + 5, top - 6, 2, 12, color);
+    const back = which === 'opp' ? 100 + d - 1 : -d + 1;
+    const p = xy(view, back, 0.5);
+    const up = which === 'opp' ? -1 : 1;
+    px(ctx, p[0] - 13, p[1], 26, 2, color);
+    px(ctx, p[0] - 13, p[1] + (up > 0 ? 2 : -11), 2, 11, color);
+    px(ctx, p[0] + 11, p[1] + (up > 0 ? 2 : -11), 2, 11, color);
+    px(ctx, p[0] - 1, p[1] + (up > 0 ? -9 : 2), 2, 9, color);
+    return;
   }
+  const back = which === 'opp' ? 100 + d - 1.5 : -d + 1.5;
+  const foot = xy(view, back, 0.72);
+  const x = Math.round(foot[0]), yb = Math.round(foot[1]);
+  px(ctx, x, yb - 7, 1, 7, color);                  /* stem */
+  px(ctx, x - 4, yb - 8, 9, 1, color);              /* crossbar */
+  px(ctx, x - 4, yb - 14, 1, 6, color);             /* uprights */
+  px(ctx, x + 4, yb - 14, 1, 6, color);
 }
+
+function depthShade(ctx, view){
+  const g = geo(view), d = ezYards(view);
+  if(view === 'v'){
+    const yTop = Math.round(xy(view, 100 + d, 0)[1]), yBot = Math.round(xy(view, -d, 0)[1]);
+    for(let y = yTop; y < yBot; y++){
+      const t = 1 - (y - yTop) / Math.max(1, yBot - yTop);   /* 1 at the far end */
+      const yard = 100 - (y - g.m - g.ezd) / g.ppy;
+      const x0 = xy(view, yard, 0)[0], x1 = xy(view, yard, 1)[0];
+      px(ctx, x0, y, x1 - x0, 1, 'rgba(4,14,24,' + (t * 0.30).toFixed(3) + ')');
+    }
+    return;
+  }
+  const rows = rowsOf(g);
+  for(let r = 0; r < rows; r++){
+    const t = r / (rows - 1 || 1);                            /* 0 at the far sideline */
+    const x0 = xy(view, -d, t)[0], x1 = xy(view, 100 + d, t)[0];
+    px(ctx, x0, g.fieldA + r, x1 - x0, 1, 'rgba(4,14,24,' + ((1 - t) * 0.34).toFixed(3) + ')');
+  }
+  /* and a sliver of light along the near sideline, where the slab turns */
+  const xl = xy(view, -d, 1)[0], xr = xy(view, 100 + d, 1)[0];
+  px(ctx, xl, g.fieldB - 1, xr - xl, 1, 'rgba(255,255,255,.10)');
+}
+
+/* a stable per-pixel hash so nothing shimmers frame to frame */
+function hash(i){ let h = (i * 2654435761) % 4294967296; return (h ^ (h >>> 13)) / 4294967296; }
 
 /* ---------------------------------------------------------------
    drawField(canvas, spec)
 
-   spec: { view, los, first, runner:{yard,frame,flip,lift}, defenders:[],
-           ball:{yard,lift}|null, flash:0..1, pal:{off,def}, chains:bool,
-           dead:bool, tint:'gold'|'red'|null }
+   spec: { view, los, first, runner:{yard,frame,flip,lane,lift}, defenders:[],
+           ball:{yard,lift}|null, flash:0..1, pal:{off,def}, ez:{own,opp},
+           chains:bool, marks:[yard], tint:'gold'|'red'|null }
    --------------------------------------------------------------- */
 function drawField(cv, spec){
   const view = spec.view === 'v' ? 'v' : 'h';
   const g = geo(view);
-  cv.width = g.W; cv.height = g.H;
+  if(cv.width !== g.W || cv.height !== g.H){ cv.width = g.W; cv.height = g.H; }
   const ctx = cv.getContext('2d');
   ctx.imageSmoothingEnabled = false;
   ctx.clearRect(0, 0, g.W, g.H);
 
-  /* stands, horizontal only — the vertical cut has no room and the crowd
-     would just be noise next to the question card */
-  if(view === 'h' && g.standB > g.standA){
-    px(ctx, 0, g.standA, g.W, g.standB - g.standA, STAND);
-    for(let i = 0; i < 900; i++){
-      const r = hash(i);
-      const x = Math.floor(hash(i * 3 + 1) * g.W);
-      const y = g.standA + Math.floor(r * (g.standB - g.standA));
-      const lit = hash(i * 7 + 5);
-      const c = spec.flash > 0.2 && lit < spec.flash ? '#fbcc7a' : (lit < 0.5 ? '#16283a' : '#1e364c');
-      px(ctx, x, y, 1, 1, c);
-    }
-    px(ctx, 0, g.standB, g.W, 4, '#0d1f2d');
-  }
-
-  /* turf: five-yard mow stripes */
+  /* turf: five-yard mow stripes, each one a trapezoid */
   for(let y5 = 0; y5 < 100; y5 += 5) bandFill(ctx, view, y5, y5 + 5, (y5 / 5) % 2 ? TURF_B : TURF_A);
 
-  /* end zones */
-  const own = ezRect(view, 'own'), opp = ezRect(view, 'opp');
   const ezOwn = (spec.ez && spec.ez.own) || EZ_FILL;
   const ezOpp = (spec.ez && spec.ez.opp) || EZ_FILL;
-  px(ctx, own[0], own[1], own[2], own[3], ezOwn);
-  px(ctx, opp[0], opp[1], opp[2], opp[3], ezOpp);
-  /* chevrons in the target end zone, pointing the way home */
-  for(let i = 0; i < 60; i++){
-    const t = i / 60;
-    if(view === 'v'){
-      const y = opp[1] + 4 + ((i * 7) % (opp[3] - 8));
-      const w = 3;
-      px(ctx, opp[0] + 6 + ((i * 11) % (opp[2] - 12)), y, w, 1, i % 3 ? '#14304a' : '#1b3f5f');
-    } else {
-      const x = opp[0] + 4 + ((i * 5) % (opp[2] - 8));
-      px(ctx, x, opp[1] + 4 + ((i * 13) % (opp[3] - 8)), 1, 3, i % 3 ? '#14304a' : '#1b3f5f');
-    }
-  }
+  ezFill(ctx, view, 'own', ezOwn);
+  ezFill(ctx, view, 'opp', ezOpp);
   if(spec.flash > 0.3){
     ctx.globalAlpha = Math.min(0.9, spec.flash);
-    px(ctx, opp[0], opp[1], opp[2], opp[3], EZ_EDGE);
+    ezFill(ctx, view, 'opp', EZ_EDGE);
     ctx.globalAlpha = 1;
   }
 
-  /* boundary */
-  if(view === 'v'){
-    px(ctx, g.fieldA - 2, g.m, 2, g.ezd * 2 + 400, LINE);
-    px(ctx, g.fieldB, g.m, 2, g.ezd * 2 + 400, LINE);
-  } else {
-    px(ctx, g.m, g.fieldA - 2, g.ezd * 2 + 400, 2, LINE);
-    px(ctx, g.m, g.fieldB, g.ezd * 2 + 400, 2, LINE);
-  }
-
-  /* yard lines every five, goal lines fat */
+  /* yard lines every five, goal lines in gold */
   for(let y5 = 0; y5 <= 100; y5 += 5) lineAcross(ctx, view, y5, y5 % 10 === 0 ? 2 : 1, LINE);
-  lineAcross(ctx, view, 0, 3, EZ_EDGE);
-  lineAcross(ctx, view, 100, 3, EZ_EDGE);
+  lineAcross(ctx, view, 0, 2, EZ_EDGE);
+  lineAcross(ctx, view, 100, 2, EZ_EDGE);
 
-  /* hash marks */
-  for(let y1 = 1; y1 < 100; y1++){
+  /* hash marks, thinned out to whatever the depth can carry */
+  const hashStep = 2;
+  for(let y1 = 1; y1 < 100; y1 += hashStep){
     if(y1 % 5 === 0) continue;
-    if(view === 'v' && y1 % 2) continue;   /* 3px a yard is too dense for every tick */
     [0.34, 0.66].forEach(t => {
       const p = xy(view, y1, t);
       if(view === 'v') px(ctx, p[0] - 2, p[1], 4, 1, LINE);
-      else px(ctx, p[0], p[1] - 2, 1, 4, LINE);
+      else px(ctx, p[0], p[1], 1, 1, 'rgba(223,234,243,.8)');
     });
   }
 
-  /* numbers every ten, counting down from both ends the way a field does */
-  for(let y10 = 10; y10 <= 90; y10 += 10){
-    const n = y10 <= 50 ? y10 : 100 - y10;
-    const s = String(n);
-    if(view === 'v'){
-      const p = xy(view, y10, 0);
-      const sc = g.numScale, wdt = s.length * 4 * sc - sc;
-      drawNum(ctx, s, g.fieldA + 4, p[1] - 2 * sc, sc, 'rgba(230,240,250,.72)');
-      drawNum(ctx, s, g.fieldB - 4 - wdt, p[1] - 2 * sc, sc, 'rgba(230,240,250,.72)');
-    } else {
-      const p = xy(view, y10, 0);
-      const wdt = s.length * 8 - 2;
-      drawNum(ctx, s, p[0] - wdt / 2, g.fieldA + 6, 2, 'rgba(230,240,250,.72)');
-      drawNum(ctx, s, p[0] - wdt / 2, g.fieldB - 16, 2, 'rgba(230,240,250,.72)');
+  /* Atmospheric perspective: lay a shade over the turf that fades out
+     toward you. The trapezoid alone reads as a wonky rectangle — it is this
+     that makes the back of the field feel further away than the front. */
+  depthShade(ctx, view);
+
+  if(view === 'v'){
+    /* the tall cut has room for numbers on the field itself */
+    const sc = g.numScale;
+    for(let y10 = 10; y10 <= 90; y10 += 10){
+      const s = String(y10 <= 50 ? y10 : 100 - y10);
+      const w = s.length * 4 * sc - sc;
+      const l = xy(view, y10, 0)[0], r = xy(view, y10, 1)[0], yy = xy(view, y10, 0)[1];
+      drawNum(ctx, s, l + 4, yy - 2 * sc, sc, 'rgba(230,240,250,.72)');
+      drawNum(ctx, s, r - 4 - w, yy - 2 * sc, sc, 'rgba(230,240,250,.72)');
     }
   }
 
@@ -532,41 +599,48 @@ function drawField(cv, spec){
   goalPost(ctx, view, 'opp', POST);
 
   /* the two lines that tell the whole story */
-  if(spec.chains !== false && spec.first != null && spec.first <= 100)
+  if(spec.chains !== false && spec.first != null && spec.first > 0 && spec.first < 100)
     lineAcross(ctx, view, spec.first, 2, '#f2c53d');
   if(spec.los != null) lineAcross(ctx, view, spec.los, 2, '#4fa8ff');
 
-  const S2 = 2;                                   /* sprite pixels per field pixel */
+  const SP = g.sprite;
   const palOff = (spec.pal && spec.pal.off) || PAL.off;
   const palDef = (spec.pal && spec.pal.def) || PAL.def;
 
-  function placeSprite(yard, lane, lift){
+  function feet(yard, lane){
     if(view === 'v'){
       const p = xy(view, yard, 0.5);
-      return [Math.round(p[0] - 12 + (lane || 0)), Math.round(p[1] + 8 - 32 - (lift || 0))];
+      return [Math.round(p[0] - 6 * SP + (lane || 0)), Math.round(p[1] + 8)];
     }
-    const p = xy(view, yard, 0.5);
-    return [Math.round(p[0] - 12), Math.round(g.base - 32 + (lane || 0) - (lift || 0))];
+    return [Math.round(xy(view, yard, 0.62)[0] - 6 * SP), Math.round(g.base + (lane || 0))];
+  }
+  function put(s, pal, lane){
+    const art = SPR[s.frame] || SPR.idle;
+    const f = feet(s.yard, lane);
+    shadow(ctx, f[0], f[1], 12 * SP, SP);
+    drawSprite(ctx, art, f[0], f[1] - 16 * SP - (s.lift || 0), SP, pal, !!s.flip);
   }
 
-  (spec.defenders || []).forEach((d, i) => {
-    const art = SPR[d.frame] || SPR.runA;
-    const pos = placeSprite(d.yard, d.lane || (i ? 12 : -12), 0);
-    drawSprite(ctx, art, pos[0], pos[1], S2, palDef, d.flip !== false);
-  });
-
-  if(spec.runner){
-    const art = SPR[spec.runner.frame] || SPR.idle;
-    const pos = placeSprite(spec.runner.yard, spec.runner.lane || 0, spec.runner.lift || 0);
-    drawSprite(ctx, art, pos[0], pos[1], S2, palOff, !!spec.runner.flip);
-  }
+  (spec.defenders || []).forEach((d, i) => put(d, palDef, d.lane != null ? d.lane : (i ? 2 : -2)));
+  if(spec.runner) put(spec.runner, palOff, spec.runner.lane || 0);
 
   if(spec.ball){
-    const p = xy(view, spec.ball.yard, 0.5);
-    const bx = view === 'v' ? p[0] - 4 : p[0] - 4;
-    const by = view === 'v' ? p[1] - 6 - (spec.ball.lift || 0) : g.base - 24 - (spec.ball.lift || 0);
-    drawSprite(ctx, BALL, Math.round(bx), Math.round(by), S2, palOff, false);
+    const p = xy(view, spec.ball.yard, view === 'v' ? 0.5 : 0.62);
+    const by = (view === 'v' ? p[1] - 4 : g.base - 8) - (spec.ball.lift || 0);
+    drawSprite(ctx, BALL, Math.round(p[0] - 2 * SP), Math.round(by), SP, palOff, false);
   }
+
+  slab(ctx, view, spec);
+  wallNumbers(ctx, view, 'rgba(230,240,250,.62)');
+
+  /* safe havens, as pylons standing on the front face */
+  (spec.marks || []).forEach(m => {
+    const p = xy(view, m, 1);
+    const lit = spec.los >= m;
+    const c = lit ? '#fbcc7a' : 'rgba(251,204,122,.34)';
+    if(view === 'v') px(ctx, p[0] + 2, p[1] - 2, 3, 4, c);
+    else { px(ctx, p[0] - 1, g.fieldB - 3, 2, 3, c); px(ctx, p[0] - 1, g.fieldB + 1, 2, g.wall - 2, lit ? '#c9992f' : 'rgba(201,153,47,.35)'); }
+  });
 
   if(spec.tint){
     ctx.globalAlpha = 0.18;
@@ -575,7 +649,6 @@ function drawField(cv, spec){
   }
   return ctx;
 }
-
 /* =====================================================================
    AUDIO
 

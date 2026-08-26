@@ -87,20 +87,37 @@ end zone for 7 and it goes back to the 50. The yards-per-answer and an optional
 
 ---
 
+## The look
+
+The field is 8-bit but it isn't flat. It's drawn as a **trapezoid slab in forced perspective** —
+the far sideline is narrower than the near one, so the yard lines lean, the turf falls into shade
+toward the back, and the whole thing sits on an extruded front face with the yard markers on it.
+That front face is doing most of the 3-D work; without it the taper just looks like a wonky
+rectangle. Sprites get a squashed shadow so they stand *in* the scene rather than on top of it.
+
+Yard markers live on the face rather than the turf, which means a sprite can never sit on top of
+a number — the reason a hundred-pixel-tall field can still tell you where the ball is.
+
 ## The three layouts
 
 All three are the same components, so nothing is a separate build.
 
-- **`layout=lower`** — transparent background, everything anchored to the bottom. Drops over
-  the shot. Turn the question card off in **Look** and you're left with a clean field-and-chyron
-  lower third.
-- **`layout=vert`** — 9:16. The field stands up and the drive runs bottom to top, question card
-  above it. This is the Shorts and Reels cut.
-- **`layout=full`** — the whole screen as a game board on navy.
+- **`layout=lower`** — the real lower third. Transparent background, anchored to the bottom of
+  the frame: **100 pixels of field** plus a compact chyron on top of it, about 160 all in. Turn
+  the question card off in **Look** and that's the whole graphic. The play call slams in *above*
+  the slab and the card dims out of its way, so nothing ever covers the field while the play is
+  running.
+- **`layout=vert`** — 9:16. The field stands up and you're looking *down* it, drive running away
+  from you toward the far end zone. Question card above. This is the Shorts and Reels cut.
+- **`layout=full`** — the whole screen as a game board on navy, slab and all.
+
+The question card is sized independently of the field, because on the wide cut it plays behind
+the contestants on a key and doesn't want to be big. **Look → Card: small / medium / large.**
 
 The display page picks the vertical cut on its own if the source is taller than it is wide, so a
 1080 × 1920 browser source with no query string still comes up right. The field only ever scales
-by whole numbers, so the pixels stay hard at any size, and the type takes up the slack.
+by whole numbers — 480 × 28 at 4× is exactly 1920 across — so the pixels stay hard at any size,
+and the type takes up the slack on its own scale.
 
 ---
 
