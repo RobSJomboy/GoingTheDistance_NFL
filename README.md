@@ -18,6 +18,7 @@ editor.html    write your own questions
 gtd.js         question bank, engine primitives, pixel art, audio
 gtdgame.js     the rules — every mode, shared by play and control
 gtdview.js     the renderer — the field and the card, shared by play and display
+gtdsync.js     the transport — the browser channel and the ntfy relays
 gtd.css        styling for all three layouts
 ```
 
@@ -30,9 +31,30 @@ it plays properly on a phone (portrait gets the vertical field). Send anyone the
 **As a show** — a host drives `control.html` and the field goes out to an OBS browser source over
 ntfy, exactly as before.
 
+### Recording a clean output while you play
+
+**RECORD** on the play page opens a second window with **just the graphic in it** — no buttons, no
+setup screen — mirroring the game as you play. Point a screen recorder at that window, or capture
+it in OBS as a window capture. It follows this browser automatically over a BroadcastChannel:
+no topic, nothing to connect. Open it mid-round and it asks for the current state, so it comes up
+where the game is rather than blank.
+
+Three shapes: **16:9 full board** (self-contained on navy — the one to record as-is), **16:9 lower
+third** and **9:16 vertical**. The two overlay layouts are built to sit over a shot, so in a window
+they come up on white — right for an OBS browser source, where the transparency is real, and wrong
+for a plain screen recording.
+
+**⛶ HIDE THIS** does the other version of the same idea: strips the buttons off the play page
+itself so you can record that window directly. Escape brings them back.
+
+**For OBS on another machine**, a browser source is its own browser and can't hear the channel — so
+the same panel takes a topic and publishes to the relays exactly like the host panel does. One
+person can run the whole bit: play on the laptop, clean graphic in OBS.
+
 Both run **the same rules off the same code**. `gtdgame.js` holds every game rule and touches no
-DOM; `gtdview.js` holds the renderer. `play.html` wires them straight together, `control.html`
-wires the rules to a publisher and `display.html` wires a subscriber to the renderer. That's the
+DOM; `gtdview.js` holds the renderer. `gtdsync.js` holds the transport. `play.html` wires all three together,
+`control.html` wires the rules to the transport and `display.html` wires the transport to the
+renderer. That's the
 whole reason for the split: if the rules lived in both pages they would drift, and a fix to the
 drive would quietly not apply to the version people actually play.
 

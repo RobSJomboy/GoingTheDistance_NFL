@@ -83,11 +83,27 @@ h3{ font-family:var(--pixel); font-size:12px; letter-spacing:2px; color:var(--go
   color:var(--dim); font-family:var(--pixel); font-size:10px; padding:8px 11px;
 }
 #hud button:hover{ border-color:var(--gold); color:var(--gold); }
+#unclean{
+  position:fixed; top:8px; right:8px; z-index:21; display:none; cursor:pointer;
+  border:2px solid var(--edge); background:rgba(7,20,32,.6); color:var(--dim);
+  font-family:var(--pixel); font-size:10px; padding:6px 8px;
+}
+body.play.hidechrome #hud, body.play.hidechrome #tip, body.play.hidechrome #srcline{ display:none; }
+body.play.hidechrome #unclean{ display:block; }
+body.play.hidechrome #unclean:hover{ border-color:var(--gold); color:var(--gold); }
 #tip{
   position:fixed; left:0; right:0; bottom:0; z-index:19; text-align:center; padding:10px;
   font-family:var(--pixel); font-size:11px; color:var(--dim); pointer-events:none;
 }
-body.play.roundover #tip{ color:var(--gold); }
+body.play.roundover #unclean{
+  position:fixed; top:8px; right:8px; z-index:21; display:none; cursor:pointer;
+  border:2px solid var(--edge); background:rgba(7,20,32,.6); color:var(--dim);
+  font-family:var(--pixel); font-size:10px; padding:6px 8px;
+}
+body.play.hidechrome #hud, body.play.hidechrome #tip, body.play.hidechrome #srcline{ display:none; }
+body.play.hidechrome #unclean{ display:block; }
+body.play.hidechrome #unclean:hover{ border-color:var(--gold); color:var(--gold); }
+#tip{ color:var(--gold); }
 #srcline{
   position:fixed; left:0; right:0; bottom:34px; z-index:19; text-align:center; padding:6px 14px;
   font-size:12px; color:var(--dim); pointer-events:none; display:none;
@@ -123,8 +139,12 @@ body.play.roundover #tip{ color:var(--gold); }
 
 <div id="hud">
   <button id="quitBtn">◀ QUIT</button>
+  <span style="flex:1"></span>
+  <button id="recBtn">◉ RECORD</button>
+  <button id="cleanBtn">⛶ HIDE THIS</button>
   <button id="muteBtn">♪ SOUND ON</button>
 </div>
+<button id="unclean" title="show the buttons again">⛶</button>
 <div id="srcline"></div>
 <div id="tip"></div>
 <div id="diag"></div>
@@ -157,6 +177,44 @@ body.play.roundover #tip{ color:var(--gold); }
   </div>
 </div>
 
+<!-- ============================ RECORD ============================ -->
+<div class="screen" id="record">
+  <div class="sheet">
+    <div class="kick">RECORDING</div>
+    <div class="big">CLEAN <span>OUTPUT</span></div>
+    <p class="sub">A second window with just the graphic in it — no buttons, no setup screen —
+      that mirrors this game as you play. Point a screen recorder at that window, or capture it in
+      OBS as a window capture.</p>
+
+    <h3>SHAPE</h3>
+    <div class="chips" id="recLayout"></div>
+    <p class="foot" id="shapeNote"></p>
+
+    <div class="rowbtns" style="margin-top:22px">
+      <button class="go" id="openMirror" style="margin-top:0">OPEN THE CLEAN WINDOW</button>
+      <button class="ghost" id="copyMirror">COPY THE LINK</button>
+    </div>
+    <p class="foot">The window follows this one automatically — same browser, no topic, nothing to
+      connect. Leave it open on a second screen and play here.</p>
+
+    <h3>OBS ON ANOTHER MACHINE</h3>
+    <p class="sub" style="font-size:14px">A browser source is its own browser, so it can't see the
+      window above. Give it a topic and this page will publish to the relays like the host panel
+      does.</p>
+    <div class="rowbtns" style="margin-top:12px">
+      <input id="recTopic" placeholder="topic name, with a random tail"
+             style="flex:2; min-width:220px; background:#0f2740; border:2px solid var(--edge); color:var(--ink); padding:14px; font-family:var(--disp); font-size:22px;">
+      <button class="ghost" id="topicGo">START PUBLISHING</button>
+    </div>
+    <p class="foot" id="topicState">not publishing · nothing leaves this browser</p>
+    <div class="rowbtns" style="margin-top:8px">
+      <button class="ghost" id="copyObs" disabled>COPY THE OBS URL</button>
+    </div>
+
+    <button class="go" id="recDone">BACK TO THE GAME</button>
+  </div>
+</div>
+
 <!-- ============================ RESULT ============================ -->
 <div class="screen" id="result">
   <div class="sheet">
@@ -174,6 +232,7 @@ body.play.roundover #tip{ color:var(--gold); }
 
 <script src="gtd.js"></script>
 <script src="gtdgame.js"></script>
+<script src="gtdsync.js"></script>
 <script src="gtdview.js"></script>
 <script>
 'use strict';
@@ -194,6 +253,30 @@ const view = GTDView.mount({
 });
 
 let muted = false, beat = null, roundLive = false;
+
+/* =====================================================================
+   THE CLEAN OUTPUT
+
+   Everything this page draws also goes out on the browser channel, so a
+   display.html window anywhere in this browser mirrors the game with no
+   setup at all — that is the thing you point a screen recorder at. Give it
+   a topic as well and it publishes to the relays too, which is the only
+   way to reach an OBS browser source, since that is its own browser and
+   cannot hear the channel.
+   ===================================================================== */
+const SYNC = GTDSync.create({
+  storeKey:'gtd_relays',
+  sigOf:obj => {
+    const p = JSON.parse(JSON.stringify(obj));
+    if(p.clock) delete p.clock.elapsed;
+    if(p.round) delete p.round.remain;
+    return JSON.stringify(p);
+  },
+  onStatus:paintTopicState
+});
+let recLayout = localStorage.getItem('gtd_reclayout') || 'full';
+let mirrorWin = null;
+
 const G = GTDGame.create({
   onChange:paint,
   onCue:c => { if(!muted) GTD.playCue(c); },
@@ -202,7 +285,10 @@ const G = GTDGame.create({
 const S = G.S;
 
 function paint(){
-  view.apply(G.snapshot({ layout:view.layout(), card:'l', showQ:true, showClock:true }));
+  const state = G.snapshot({ layout:view.layout(), card:'l', showQ:true, showClock:true });
+  view.apply(state);
+  /* the mirror wants the broadcast shape, not this page's centred one */
+  SYNC.send(Object.assign({}, state, { layout:recLayout, card:'m' }));
   const q = S.q;
   document.body.classList.toggle('live', !!(q && !q.reveal));
   document.body.classList.toggle('locked', !!(q && q.reveal));
@@ -281,7 +367,7 @@ paintSetup();
 /* =====================================================================
    THE ROUND
    ===================================================================== */
-function show(id){ ['setup', 'result'].forEach(s => $(s).classList.toggle('on', s === id)); }
+function show(id){ ['setup', 'result', 'record'].forEach(s => $(s).classList.toggle('on', s === id)); }
 
 function start(){
   GTD.audioCtx();                       /* the tap that unlocks WebAudio */
@@ -427,6 +513,94 @@ function finish(){
   show('result');
 }
 
+/* ---- the record panel ---- */
+function mirrorURL(){
+  return location.href.split('#')[0].replace(/play\.html.*$/, '') + 'display.html?layout=' + recLayout;
+}
+function obsURL(){
+  return location.href.split('#')[0].replace(/play\.html.*$/, '') +
+    'display.html?topic=' + encodeURIComponent(SYNC.topic()) + '&layout=' + recLayout;
+}
+const REC_SIZES = { lower:[1280, 720], full:[1280, 720], vert:[540, 960] };
+function paintRec(){
+  const host = $('recLayout'); host.innerHTML = '';
+  [['lower', '16:9 LOWER THIRD'], ['full', '16:9 FULL BOARD'], ['vert', '9:16 VERTICAL']].forEach(([k, t]) => {
+    const b = document.createElement('div');
+    b.className = 'chip' + (recLayout === k ? ' on' : '');
+    b.textContent = t;
+    b.onclick = () => {
+      recLayout = k;
+      try{ localStorage.setItem('gtd_reclayout', k); }catch(e){}
+      paintRec(); paint();
+      if(mirrorWin && !mirrorWin.closed) mirrorWin.location.replace(mirrorURL());
+    };
+    host.appendChild(b);
+  });
+  /* A browser window cannot be transparent, so the two overlay layouts come
+     up on white in a window you record. That is fine if you are keying it,
+     and wrong if you are not — say so rather than let it surprise anyone. */
+  $('shapeNote').innerHTML = recLayout === 'full'
+    ? 'Self-contained on navy — record this window as it is.'
+    : 'This one is built to sit over a shot, so it comes up on white in a window. '
+      + 'Fine for an OBS browser source, where it really is transparent; for a plain screen '
+      + 'recording you probably want the full board.';
+}
+function paintTopicState(){
+  const t = SYNC.topic();
+  if(!t){ $('topicState').textContent = 'not publishing · nothing leaves this browser'; return; }
+  const up = SYNC.relays.filter(r => r.on && r.state !== 'down').length;
+  const on = SYNC.relays.filter(r => r.on).length;
+  $('topicState').textContent = 'publishing to ' + t + ' · ' + SYNC.sent() + ' sent · ' + up + '/' + on + ' relays up';
+}
+$('recBtn').onclick = () => { paintRec(); paintTopicState(); show('record'); };
+$('recDone').onclick = () => show(null);
+$('openMirror').onclick = () => {
+  const size = REC_SIZES[recLayout] || REC_SIZES.lower;
+  mirrorWin = window.open(mirrorURL(), 'gtd-clean', 'width=' + size[0] + ',height=' + size[1]);
+  if(!mirrorWin){ alert('The browser blocked the pop-up. Allow pop-ups for this page, or copy the link and open it in a new window yourself.'); return; }
+  /* window.open sizes the outer frame, so the page inside comes up short by
+     however much chrome the browser adds. Measure once it is up and correct. */
+  setTimeout(() => {
+    try{
+      const dw = size[0] - mirrorWin.innerWidth, dh = size[1] - mirrorWin.innerHeight;
+      if(dw > 0 || dh > 0) mirrorWin.resizeTo(size[0] + Math.max(0, dw), size[1] + Math.max(0, dh));
+    }catch(e){}
+  }, 700);
+  show(null);
+};
+$('copyMirror').onclick = () => {
+  const u = mirrorURL();
+  navigator.clipboard.writeText(u).then(() => {
+    $('copyMirror').textContent = 'COPIED';
+    setTimeout(() => { $('copyMirror').textContent = 'COPY THE LINK'; }, 1600);
+  }).catch(() => prompt('Open this in a second window:', u));
+};
+$('topicGo').onclick = () => {
+  const t = $('recTopic').value.trim();
+  if(!t){ alert('Give it a topic name first — anything, with a random tail so nobody else lands on it.'); return; }
+  SYNC.setTopic(t);
+  try{ localStorage.setItem('gtd_playtopic', t); }catch(e){}
+  $('copyObs').disabled = false;
+  paint();
+  paintTopicState();
+};
+$('copyObs').onclick = () => {
+  const u = obsURL();
+  navigator.clipboard.writeText(u).then(() => {
+    $('copyObs').textContent = 'COPIED';
+    setTimeout(() => { $('copyObs').textContent = 'COPY THE OBS URL'; }, 1600);
+  }).catch(() => prompt('Paste this into the OBS browser source:', u));
+};
+$('recTopic').value = localStorage.getItem('gtd_playtopic') || ('jomboy-gtd-' + Math.random().toString(36).slice(2, 7));
+
+/* hiding the buttons is for recording this window itself rather than a mirror */
+function setChrome(on){
+  document.body.classList.toggle('hidechrome', !on);
+  $('cleanBtn').textContent = on ? '⛶ HIDE THIS' : '⛶ SHOW';
+}
+$('cleanBtn').onclick = () => setChrome(false);
+$('unclean').onclick = () => setChrome(true);
+
 $('startBtn').onclick = start;
 $('againBtn').onclick = start;
 $('changeBtn').onclick = () => { roundLive = false; clearTimeout(beat); paintSetup(); show('setup'); };
@@ -440,7 +614,9 @@ $('muteBtn').onclick = () => {
   $('muteBtn').textContent = muted ? '♪ SOUND OFF' : '♪ SOUND ON';
 };
 addEventListener('keydown', ev => {
-  if($('setup').classList.contains('on') || $('result').classList.contains('on')) return;
+  if(ev.key === 'Escape'){ setChrome(true); return; }
+  if($('setup').classList.contains('on') || $('result').classList.contains('on') || $('record').classList.contains('on')) return;
+  if(ev.target && ev.target.tagName === 'INPUT') return;
   const k = ev.key.toLowerCase();
   if('abcd'.includes(k)){ ev.preventDefault(); pickAnswer('abcd'.indexOf(k)); }
   if('1234'.includes(k)){ ev.preventDefault(); pickAnswer(+k - 1); }

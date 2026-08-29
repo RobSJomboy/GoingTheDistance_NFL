@@ -154,6 +154,9 @@ let BC = null;
 try{
   BC = new BroadcastChannel('going_the_distance');
   BC.onmessage = ev => { const d = ev.data; if(!d || d.__req) return; accept(JSON.stringify(d)); };
+  /* Opened mid-round, this window has missed everything so far — ask, and
+     whichever page is publishing answers with where the game is now. */
+  BC.postMessage({ __req:1 });
 }catch(e){}
 
 /* no-network fallback: the whole state base64'd into the fragment */
@@ -170,7 +173,6 @@ function readSnapshot(){
 }
 
 if(IN_FRAME){
-  try{ if(BC) BC.postMessage({ __req:1 }); }catch(e){}
   view.diag('');
 } else {
   const hadSnap = readSnapshot();
@@ -200,7 +202,9 @@ if(IN_FRAME){
       }catch(e){}
     });
   } else if(!hadSnap){
-    view.diag('no ?topic= — nothing to listen to');
+    /* no topic is normal for a mirror window next to play.html — it is
+       listening on the channel, not on a relay */
+    view.diag('mirroring this browser');
   }
 }
 </script>

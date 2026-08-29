@@ -411,6 +411,7 @@ button kbd{ font-family:'DM Mono',monospace; font-size:10px; opacity:.65; margin
 
 <script src="gtd.js"></script>
 <script src="gtdgame.js"></script>
+<script src="gtdsync.js"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -418,8 +419,6 @@ const el = (cls, txt) => { const d = document.createElement('div'); if(cls) d.cl
 let TOPIC = localStorage.getItem('gtd_topic') || '';
 $('topicInput').value = TOPIC;
 
-let BC = null;
-try{ BC = new BroadcastChannel('going_the_distance'); }catch(e){}
 
 /* =====================================================================
    STATE
@@ -689,107 +688,61 @@ function visibleSig(){
 }
 
 /* =====================================================================
-   MULTI-RELAY PUBLISH
+   PUBLISH
 
-   Every message goes to every ticked relay at once and counts as delivered
-   the moment any one accepts it, so a 429 from ntfy.sh or a mirror going
-   dark costs nothing while another is answering. Each relay carries its own
-   backoff. The sequence number is clock-based rather than a counter so
-   reloading this page can't restart it below what the overlay has already
-   applied.
+   The transport lives in gtdsync.js — relay fan-out, backoff, sequence
+   numbers, the BroadcastChannel the preview runs on. This page only has to
+   say what changed and paint the meter.
    ===================================================================== */
-let lastSig = null, sendTimer = null, sentCount = 0, lastN = 0;
-function nextSeq(){ lastN = Math.max(Date.now(), lastN + 1); return lastN; }
+const SYNC = GTDSync.create({
+  topic:TOPIC,
+  storeKey:'gtd_relays',
+  /* the running clock and the round clock tick constantly and the overlay
+     runs its own copies — leaving them in the signature would make every
+     repaint look like a change worth a message */
+  sigOf:obj => {
+    const p = JSON.parse(JSON.stringify(obj));
+    if(p.clock) delete p.clock.elapsed;
+    if(p.round) delete p.round.remain;
+    return JSON.stringify(p);
+  },
+  onStatus:() => meter()
+});
 
-const RELAY = GTD.RELAYS.map(r => ({ ...r, on:true, pending:null, inFlight:false, backoff:0, ok:0, fail:0, state:'idle' }));
-try{
-  const saved = JSON.parse(localStorage.getItem('gtd_relays') || 'null');
-  if(saved) RELAY.forEach(r => { if(saved[r.host] !== undefined) r.on = !!saved[r.host]; });
-}catch(e){}
-function saveRelays(){
-  try{ const o = {}; RELAY.forEach(r => o[r.host] = r.on); localStorage.setItem('gtd_relays', JSON.stringify(o)); }catch(e){}
-}
 function note(msg, bad){ $('saveHint').innerHTML = bad ? '<b class="warn">' + msg + '</b>' : msg; }
 function meter(){
-  const on = RELAY.filter(r => r.on);
+  const on = SYNC.relays.filter(r => r.on);
   const live = on.filter(r => r.state !== 'down').length;
-  const queued = RELAY.filter(r => r.pending !== null).length;
-  $('reqMeter').textContent = sentCount + ' sent · ' + live + '/' + on.length + ' relays up' + (queued ? ' · ' + queued + ' retrying' : '');
+  const queued = SYNC.relays.filter(r => r.pending !== null).length;
+  $('reqMeter').textContent = SYNC.sent() + ' sent · ' + live + '/' + on.length + ' relays up' +
+    (queued ? ' · ' + queued + ' retrying' : '');
   $('reqMeter').className = 'hint' + (live === 0 ? ' warn' : '');
+  if(SYNC.topic()){
+    const anyOk = SYNC.relays.some(x => x.on && x.state === 'ok');
+    note(anyOk ? 'sent ' + SYNC.sent() + ' · ' + new Date().toLocaleTimeString()
+               : 'every relay is busy or down — still retrying. Use “Snapshot URL” if it stays that way.', !anyOk);
+  }
   paintRelays();
 }
 function paintRelays(){
   const host = $('relayRow'); if(!host) return;
   host.innerHTML = '';
-  RELAY.forEach(r => {
+  SYNC.relays.forEach(r => {
     const d = el('relay ' + (r.on ? r.state : 'off'));
     const cb = document.createElement('input');
     cb.type = 'checkbox'; cb.checked = r.on;
-    cb.onchange = () => { r.on = cb.checked; if(!r.on){ r.pending = null; r.state = 'idle'; } saveRelays(); meter(); };
+    cb.onchange = () => { r.on = cb.checked; if(!r.on){ r.pending = null; r.state = 'idle'; } SYNC.saveRelays(); meter(); };
     d.append(cb, el('rl', r.label), el('rs',
       !r.on ? 'off' : r.state === 'ok' ? 'ok ' + r.ok : r.state === 'busy' ? 'busy — retrying' : r.state === 'down' ? 'no answer' : 'idle'));
     host.appendChild(d);
   });
 }
-/* a relay that hangs is worse than one that refuses: without a deadline the
-   request sits on the browser's TCP timeout and that relay retries nothing */
-const SEND_TIMEOUT = 6000;
-function fetchWithTimeout(url, opts, ms){
-  if(typeof AbortController === 'undefined') return fetch(url, opts);
-  const ac = new AbortController();
-  const t = setTimeout(() => ac.abort(), ms);
-  return fetch(url, { ...opts, signal:ac.signal }).finally(() => clearTimeout(t));
-}
-function flushRelay(r){
-  if(!r.on || r.inFlight || r.pending === null || !TOPIC) return;
-  r.inFlight = true;
-  const body = r.pending; r.pending = null;
-  fetchWithTimeout('https://' + r.host + '/' + encodeURIComponent(TOPIC), { method:'POST', body:body }, SEND_TIMEOUT)
-    .then(res => {
-      if(res.status === 429 || res.status >= 500){
-        if(r.pending === null) r.pending = body;
-        r.backoff = Math.min(30000, r.backoff ? Math.round(r.backoff * 1.8) : 2000);
-        r.state = 'busy'; r.fail++;
-      } else if(!res.ok){
-        if(r.pending === null) r.pending = body;
-        r.backoff = Math.min(30000, r.backoff ? Math.round(r.backoff * 1.8) : 4000);
-        r.state = 'down'; r.fail++;
-      } else { r.backoff = 0; r.ok++; r.state = 'ok'; }
-    })
-    .catch(() => {
-      if(r.pending === null) r.pending = body;
-      r.backoff = Math.min(30000, r.backoff ? Math.round(r.backoff * 1.8) : 3000);
-      r.state = 'down'; r.fail++;
-    })
-    .then(() => {
-      r.inFlight = false;
-      const anyOk = RELAY.some(x => x.on && x.state === 'ok');
-      note(anyOk ? 'sent ' + sentCount + ' · ' + new Date().toLocaleTimeString()
-                 : 'every relay is busy or down — still retrying. Use “Snapshot URL” if it stays that way.', !anyOk);
-      meter();
-      if(r.pending !== null) setTimeout(() => flushRelay(r), r.backoff || 120);
-    });
-}
-function flushAll(body){
-  RELAY.forEach(r => { if(!r.on) return; r.pending = body; flushRelay(r); });
-  meter();
-}
-function publish(force){
-  if(BC){ try{ BC.postMessage(JSON.parse(payload(0))); }catch(e){} }
-  if(!TOPIC) return;
-  const sig = visibleSig();
-  if(!force && sig === lastSig) return;
-  lastSig = sig;
-  clearTimeout(sendTimer);
-  sendTimer = setTimeout(() => { sentCount++; flushAll(payload(nextSeq())); }, 140);
-}
-if(BC) BC.onmessage = e => { if(e.data && e.data.__req){ try{ BC.postMessage(JSON.parse(payload(0))); }catch(err){} } };
+
+function publish(force){ SYNC.send(JSON.parse(payload(0)), force); }
 
 function snapshotURL(){
   const base = location.href.split('#')[0].replace(/control\.html.*$/, '');
-  const body = payload(nextSeq());
-  const b64 = btoa(unescape(encodeURIComponent(body))).replace(/\+/g, '-').replace(/\//g, '_');
-  return base + 'display.html?layout=' + S.layout + '#s=' + b64;
+  return SYNC.snapshotURL(base + 'display.html?layout=' + S.layout, JSON.parse(payload(0)));
 }
 function displayURL(){
   const base = location.href.split('#')[0].replace(/control\.html.*$/, '');
@@ -806,6 +759,7 @@ $('connectBtn').onclick = () => {
   TOPIC = $('topicInput').value.trim();
   if(!TOPIC){ alert('Give it a topic name first — anything, with a random tail so nobody else lands on it.'); return; }
   localStorage.setItem('gtd_topic', TOPIC);
+  SYNC.setTopic(TOPIC);
   $('connStatus').textContent = 'connected'; $('connStatus').className = 'mono ok';
   $('copyDisplayBtn').disabled = false;
   meter(); publish(true);
