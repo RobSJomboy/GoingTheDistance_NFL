@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Going the Distance — Question Editor</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&family=Press+Start+2P&display=swap');
+:root{
+  --navy:#0d1f2d; --panel:#11273a; --panel2:#0f2233; --edge:#22415c;
+  --gold:#fbcc7a; --ink:#eef4fa; --dim:#8fabc4;
+  --green:#3fbf6f; --red:#e2453c;
+}
+*{ margin:0; padding:0; box-sizing:border-box; }
+body{ font-family:'DM Sans',-apple-system,Arial,sans-serif; background:var(--navy); color:var(--ink); font-size:14px; }
+.wrap{ max-width:1680px; margin:0 auto; padding:18px; }
+.kick{ font-family:'Press Start 2P',monospace; font-size:11px; color:var(--gold); letter-spacing:2px; }
+h1{ font-family:'Bebas Neue',sans-serif; font-size:44px; letter-spacing:1px; line-height:.95; }
+h1 span{ color:var(--gold); }
+header{ display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:16px; }
+header .note{ color:var(--dim); font-size:13px; max-width:720px; line-height:1.55; }
+header a{ color:var(--gold); }
+
+section{ background:var(--panel); border:1px solid var(--edge); border-radius:12px; padding:16px 18px; margin-bottom:14px; }
+h2{ font-family:'Bebas Neue',sans-serif; font-size:16px; letter-spacing:3px; color:var(--gold);
+    display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+h2 .note{ font-family:'DM Sans',sans-serif; font-size:12px; letter-spacing:0; color:var(--dim); font-weight:400; }
+.row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:9px; }
+.row:last-child{ margin-bottom:0; }
+.hint{ font-size:12px; color:var(--dim); line-height:1.6; }
+.hint.warn{ color:#ff9a92; }
+.mono{ font-family:'DM Mono',monospace; font-size:11px; color:var(--dim); }
+
+button{ background:#183149; border:1px solid var(--edge); color:var(--ink); cursor:pointer;
+  border-radius:8px; padding:9px 14px; font-size:13px; font-weight:500; }
+button:hover:not(:disabled){ border-color:var(--gold); }
+button:disabled{ opacity:.35; cursor:default; }
+button.gold{ background:var(--gold); color:#0d1f2d; border-color:var(--gold); font-weight:700; }
+button.bad{ border-color:rgba(226,69,60,.6); color:#ff9a92; }
+button.sm{ padding:4px 8px; font-size:12px; border-radius:6px; }
+input, select, textarea{ background:var(--panel2); border:1px solid var(--edge); color:var(--ink);
+  border-radius:6px; padding:7px 8px; font-family:'DM Sans',sans-serif; font-size:13px; width:100%; }
+textarea{ font-family:'DM Mono',monospace; font-size:12px; line-height:1.6; resize:vertical; }
+input:focus, select:focus, textarea:focus{ outline:none; border-color:var(--gold); }
+
+table{ width:100%; border-collapse:collapse; }
+th{ text-align:left; font-family:'DM Mono',monospace; font-size:10px; color:var(--dim);
+    letter-spacing:.6px; padding:0 6px 7px; font-weight:400; }
+td{ padding:3px 4px; vertical-align:top; }
+tr.bad input:first-child{ border-color:rgba(226,69,60,.7); }
+tr.nosrc td.srcCell input{ border-color:rgba(251,204,122,.5); }
+td.flag{ font-family:'DM Mono',monospace; font-size:10px; white-space:nowrap; padding-top:12px; }
+td.flag .e{ color:#ff8b82; } td.flag .w{ color:var(--gold); } td.flag .ok{ color:var(--green); }
+.grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:8px; }
+.cnt{ background:#0a1c2a; border:1px solid var(--edge); border-radius:8px; padding:9px 11px; }
+.cnt .k{ font-family:'DM Mono',monospace; font-size:10px; color:var(--dim); }
+.cnt .v{ font-family:'Bebas Neue',sans-serif; font-size:26px; letter-spacing:1px; }
+.cnt .v.zero{ color:#ff8b82; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div>
+    <div class="kick">JOMBOY MEDIA</div>
+    <h1>QUESTION <span>EDITOR</span></h1>
+    <p class="note">Write your own questions here and they show up in the game. Everything saves in
+      this browser as you type, so the control page picks it up on its next reload — no files to
+      move. <a href="control.html">← back to control</a></p>
+  </div>
+  <div class="hint" style="text-align:right">
+    <b style="color:var(--gold)">THE RULES</b><br>
+    Right answer goes in its own column — the four get shuffled on air.<br>
+    Every question wants a source. Ones without get flagged, and the<br>
+    control page counts them so nothing goes out unchecked.
+  </div>
+</header>
+
+<section>
+  <h2>Which bank the game plays from</h2>
+  <div class="row">
+    <select id="bankMode" style="width:auto">
+      <option value="both">Built-in questions and mine together</option>
+      <option value="builtin">Built-in questions only</option>
+      <option value="mine">My questions only</option>
+    </select>
+    <span class="hint" id="bankModeHint"></span>
+  </div>
+</section>
+
+<section>
+  <h2>My questions <span class="note" id="tally"></span></h2>
+  <div class="row">
+    <button id="addRow" class="gold">+ Add a question</button>
+    <button id="importBtn">Paste a batch in</button>
+    <button id="exportBtn">Copy mine out</button>
+    <button id="dlBtn">Download as .txt</button>
+    <button id="clearAll" class="bad">Delete all mine</button>
+    <span class="hint" id="saveState"></span>
+  </div>
+  <div id="importBox" style="display:none; margin-top:10px">
+    <p class="hint" style="margin-bottom:8px">One a line, pipes between:
+      <span class="mono">question | right | wrong | wrong | wrong | difficulty 1-3 | era | source</span><br>
+      Era is one of <span class="mono">any 70s 80s 90s 00s 10s 20s</span>. Missing difficulty lands in
+      medium, missing era in evergreen.</p>
+    <textarea id="importText" rows="7" placeholder="Who threw the Music City Miracle lateral?|Frank Wycheck|Kevin Dyson|Steve McNair|Eddie George|3|90s|Titans.com"></textarea>
+    <div class="row" style="margin-top:8px">
+      <button id="importGo" class="gold">Add these</button>
+      <button id="importReplace">Replace everything with these</button>
+      <span class="hint" id="importMsg"></span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Coverage <span class="note">what the game can serve at each setting, counting whichever banks are switched on</span></h2>
+  <div class="grid" id="coverage"></div>
+  <p class="hint" style="margin-top:10px">A cell at zero means that difficulty and era together
+    can't fill a round — the game widens the difficulty before it gives up the era, but it is
+    better to know now.</p>
+</section>
+
+<section>
+  <h2>The questions</h2>
+  <div style="overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th style="min-width:280px">QUESTION</th>
+        <th style="min-width:150px">RIGHT ANSWER</th>
+        <th style="min-width:130px">WRONG</th>
+        <th style="min-width:130px">WRONG</th>
+        <th style="min-width:130px">WRONG</th>
+        <th style="width:96px">DIFFICULTY</th>
+        <th style="width:96px">ERA</th>
+        <th style="min-width:150px">SOURCE</th>
+        <th></th><th></th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <p class="hint" id="emptyNote" style="margin-top:12px"></p>
+</section>
+
+</div>
+
+<script src="gtd.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const KEY = 'gtd_custom', MODEKEY = 'gtd_bankmode';
+
+let rows = [];
+try{ rows = JSON.parse(localStorage.getItem(KEY) || '[]') || []; }catch(e){ rows = []; }
+let bankMode = localStorage.getItem(MODEKEY) || 'both';
+$('bankMode').value = bankMode;
+
+function blank(){ return { text:'', right:'', wrong:['', '', ''], diff:2, era:'any', src:'' }; }
+
+/* An error means the question cannot be served at all; a warning means it can
+   but shouldn't go on air unchecked. Only errors keep a row out of the game. */
+function problems(r){
+  const e = [], w = [];
+  if(!r.text.trim()) e.push('no question');
+  if(!r.right.trim()) e.push('no answer');
+  const wrongs = r.wrong.filter(x => x && x.trim());
+  if(wrongs.length < 3) e.push('needs ' + (3 - wrongs.length) + ' more wrong');
+  const all = [r.right].concat(wrongs).map(x => x.trim().toLowerCase()).filter(Boolean);
+  if(new Set(all).size !== all.length) e.push('duplicate choice');
+  if(!r.src.trim()) w.push('no source');
+  return { e:e, w:w };
+}
+const usable = r => problems(r).e.length === 0;
+
+function save(){
+  try{
+    localStorage.setItem(KEY, JSON.stringify(rows));
+    localStorage.setItem(MODEKEY, bankMode);
+    $('saveState').textContent = 'saved · ' + new Date().toLocaleTimeString();
+    $('saveState').className = 'hint';
+  }catch(err){
+    $('saveState').textContent = "couldn't save — browser storage is full or blocked";
+    $('saveState').className = 'hint warn';
+  }
+  tally(); coverage();
+}
+
+function tally(){
+  const good = rows.filter(usable).length;
+  const nosrc = rows.filter(r => usable(r) && !r.src.trim()).length;
+  const broken = rows.length - good;
+  $('tally').textContent = rows.length + ' written · ' + good + ' playable' +
+    (broken ? ' · ' + broken + " not finished" : '') +
+    (nosrc ? ' · ' + nosrc + ' with no source' : '');
+  $('emptyNote').textContent = rows.length ? '' :
+    "Nothing here yet. Add a question, or paste a batch in — the game keeps playing the built-in bank until you switch it over.";
+}
+
+/* Count against the same pool the game will actually use, so this panel and
+   the control page can never disagree about what is playable. */
+function coverage(){
+  GTD.rebuildPool(bankMode === 'builtin' ? [] : rows.filter(usable),
+                  { customOnly:bankMode === 'mine' });
+  const host = $('coverage'); host.innerHTML = '';
+  GTD.ERAS.forEach(([k, label]) => {
+    const c = document.createElement('div'); c.className = 'cnt';
+    const kk = document.createElement('div'); kk.className = 'k'; kk.textContent = label.toUpperCase();
+    const counts = GTD.DIFFS.map(([d]) => GTD.count({ diff:d, eras:[k] }, {}));
+    const vv = document.createElement('div'); vv.className = 'v' + (counts.some(x => x === 0) ? ' zero' : '');
+    vv.textContent = counts.join(' / ');
+    const h = document.createElement('div'); h.className = 'k'; h.textContent = 'easy / med / hard';
+    c.append(kk, vv, h); host.appendChild(c);
+  });
+}
+
+function cellInput(val, on, ph){
+  const i = document.createElement('input');
+  i.value = val || ''; if(ph) i.placeholder = ph;
+  i.oninput = () => { on(i.value); save(); flags(); };
+  return i;
+}
+function td(child, cls){ const d = document.createElement('td'); if(cls) d.className = cls; if(child) d.appendChild(child); return d; }
+
+function render(){
+  const host = $('rows'); host.innerHTML = '';
+  rows.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    tr.appendChild(td(cellInput(r.text, v => r.text = v, 'the question')));
+    tr.appendChild(td(cellInput(r.right, v => r.right = v, 'the right one')));
+    for(let k = 0; k < 3; k++) tr.appendChild(td(cellInput(r.wrong[k], v => r.wrong[k] = v, 'wrong')));
+
+    const ds = document.createElement('select');
+    GTD.DIFFS.forEach(([d, label]) => {
+      const o = document.createElement('option'); o.value = d; o.textContent = label; ds.appendChild(o);
+    });
+    ds.value = r.diff; ds.onchange = () => { r.diff = +ds.value; save(); };
+    tr.appendChild(td(ds));
+
+    const es = document.createElement('select');
+    GTD.ERAS.forEach(([k, label]) => {
+      const o = document.createElement('option'); o.value = k; o.textContent = label; es.appendChild(o);
+    });
+    es.value = r.era; es.onchange = () => { r.era = es.value; save(); };
+    tr.appendChild(td(es));
+
+    tr.appendChild(td(cellInput(r.src, v => r.src = v, 'where it came from'), 'srcCell'));
+
+    const flag = document.createElement('td'); flag.className = 'flag';
+    tr.appendChild(flag);
+
+    const tools = document.createElement('td'); tools.className = 'flag';
+    const dup = document.createElement('button'); dup.className = 'sm'; dup.textContent = '⧉';
+    dup.title = 'duplicate';
+    dup.onclick = () => { rows.splice(i + 1, 0, JSON.parse(JSON.stringify(r))); save(); render(); };
+    const del = document.createElement('button'); del.className = 'sm bad'; del.textContent = '✕';
+    del.title = 'delete';
+    del.onclick = () => { rows.splice(i, 1); save(); render(); };
+    tools.append(dup, del);
+    tr.appendChild(tools);
+
+    host.appendChild(tr);
+  });
+  flags();
+  tally(); coverage();
+}
+
+function flags(){
+  const host = $('rows');
+  rows.forEach((r, i) => {
+    const tr = host.children[i]; if(!tr) return;
+    const p = problems(r);
+    tr.className = p.e.length ? 'bad' : (p.w.length ? 'nosrc' : '');
+    const cell = tr.children[8];
+    cell.innerHTML = p.e.length ? '<span class="e">' + p.e.join(', ') + '</span>'
+      : p.w.length ? '<span class="w">' + p.w.join(', ') + '</span>'
+      : '<span class="ok">ok</span>';
+  });
+}
+
+$('addRow').onclick = () => { rows.push(blank()); save(); render(); window.scrollTo(0, document.body.scrollHeight); };
+$('clearAll').onclick = () => {
+  if(!rows.length) return;
+  if(!confirm('Delete all ' + rows.length + ' of your questions? The built-in bank is not touched.')) return;
+  rows = []; save(); render();
+};
+$('bankMode').onchange = e => {
+  bankMode = e.target.value; save();
+  $('bankModeHint').textContent = bankMode === 'mine'
+    ? 'the game will play only what is in this table'
+    : bankMode === 'builtin' ? 'your questions are parked, not deleted'
+    : 'both banks, shuffled together';
+};
+$('bankMode').onchange({ target:$('bankMode') });
+
+$('importBtn').onclick = () => {
+  const b = $('importBox');
+  b.style.display = b.style.display === 'none' ? 'block' : 'none';
+};
+function doImport(replace){
+  const { rows:got, bad } = GTD.parseImport($('importText').value);
+  if(!got.length){ $('importMsg').innerHTML = '<span class="warn">nothing readable in there</span>'; return; }
+  const mapped = got.map(g => ({
+    text:g.text, right:g.right,
+    wrong:[g.wrong[0] || '', g.wrong[1] || '', g.wrong[2] || ''],
+    diff:g.diff, era:g.era, src:g.src || ''
+  }));
+  rows = replace ? mapped : rows.concat(mapped);
+  $('importMsg').innerHTML = (replace ? 'replaced with ' : 'added ') + mapped.length +
+    (bad.length ? ' · <span class="warn">skipped line' + (bad.length > 1 ? 's ' : ' ') + bad.join(', ') + '</span>' : '');
+  save(); render();
+}
+$('importGo').onclick = () => doImport(false);
+$('importReplace').onclick = () => doImport(true);
+
+function asText(){
+  return rows.map(r => [r.text, r.right, r.wrong[0], r.wrong[1], r.wrong[2], r.diff, r.era, r.src].join('|')).join('\n');
+}
+$('exportBtn').onclick = () => {
+  const t = asText();
+  navigator.clipboard.writeText(t).then(() => {
+    $('exportBtn').textContent = 'Copied ' + rows.length;
+    setTimeout(() => { $('exportBtn').textContent = 'Copy mine out'; }, 1800);
+  }).catch(() => prompt('Copy this:', t));
+};
+/* a real file, so a question set can live somewhere other than one browser */
+$('dlBtn').onclick = () => {
+  const blob = new Blob([asText()], { type:'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'going-the-distance-questions.txt';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+
+if(!rows.length) rows.push(blank());
+render();
+</script>
+</body>
+</html>

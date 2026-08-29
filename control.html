@@ -75,10 +75,10 @@ button kbd{ font-family:'DM Mono',monospace; font-size:10px; opacity:.65; margin
 .relay.off{ opacity:.45; }
 
 /* mode tabs */
-#modeTabs{ display:flex; gap:8px; margin-bottom:14px; }
-.mtab{ flex:1; text-align:center; cursor:pointer; padding:12px 10px; border:1px solid var(--edge);
+#modeTabs{ display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:8px; margin-bottom:14px; }
+.mtab{ text-align:center; cursor:pointer; padding:12px 10px; border:1px solid var(--edge);
        border-radius:10px; background:var(--panel2); }
-.mtab .t{ font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:1px; color:var(--ink); line-height:1; }
+.mtab .t{ font-family:'Bebas Neue',sans-serif; font-size:19px; letter-spacing:1px; color:var(--ink); line-height:1.05; }
 .mtab .d{ font-size:11px; color:var(--dim); margin-top:5px; line-height:1.4; }
 .mtab.on{ border-color:var(--gold); background:#16324a; }
 .mtab.on .t{ color:var(--gold); }
@@ -105,6 +105,9 @@ button kbd{ font-family:'DM Mono',monospace; font-size:10px; opacity:.65; margin
 .copt.lock{ background:#3a2c0e; border-color:var(--gold); }
 .copt.gone{ opacity:.3; }
 .copt .tag{ margin-left:auto; font-family:'DM Mono',monospace; font-size:10px; color:var(--green); }
+.chip{ cursor:pointer; user-select:none; border:1px solid var(--edge); border-radius:16px;
+       padding:5px 12px; font-size:12px; background:var(--panel2); color:var(--dim); }
+.chip.on{ border-color:var(--gold); color:var(--gold); background:#16324a; }
 #qcite a{ color:var(--gold); }
 #qcite .nosrc{ color:#ff9a92; }
 
@@ -175,13 +178,40 @@ button kbd{ font-family:'DM Mono',monospace; font-size:10px; opacity:.65; margin
     <h2><span class="n">2</span> Game</h2>
     <div id="modeTabs">
       <div class="mtab on" data-m="drive">
-        <div class="t">GOING THE DISTANCE</div>
-        <div class="d">Own 1 to the end zone. Speed sets the play.</div>
+        <div class="t">THE DRIVE</div>
+        <div class="d">Own 1 to the end zone. How fast you answer is the play.</div>
       </div>
       <div class="mtab" data-m="h2h">
         <div class="t">HEAD TO HEAD</div>
         <div class="d">Start at the 50. Five yards a question, turnover if you miss.</div>
       </div>
+      <div class="mtab" data-m="2min">
+        <div class="t">TWO-MINUTE DRILL</div>
+        <div class="d">One clock for the whole round. Rapid fire, score as much as you can.</div>
+      </div>
+      <div class="mtab" data-m="sudden">
+        <div class="t">SUDDEN DEATH</div>
+        <div class="d">One wrong answer ends it. How far can you get?</div>
+      </div>
+      <div class="mtab" data-m="wager">
+        <div class="t">THE WAGER</div>
+        <div class="d">Call your yardage before the question. Miss it and you lose it.</div>
+      </div>
+    </div>
+
+    <div class="row" style="margin-bottom:12px">
+      <label class="f" style="width:130px">DIFFICULTY
+        <select id="diffPick">
+          <option value="ladder">Ladder (field position)</option>
+          <option value="1">Easy</option>
+          <option value="2">Medium</option>
+          <option value="3">Hard</option>
+        </select></label>
+      <div class="grow">
+        <div class="mono" style="margin-bottom:5px">ERAS</div>
+        <div class="row" id="eraChips" style="margin:0"></div>
+      </div>
+      <span class="hint" id="filterCount"></span>
     </div>
 
     <div id="sitrep"></div>
@@ -273,6 +303,42 @@ button kbd{ font-family:'DM Mono',monospace; font-size:10px; opacity:.65; margin
       it goes back to the 50.</div>
   </section>
 
+  <section class="mpanel" id="p-2min">
+    <h2><span class="n">3</span> Two-minute drill <span class="note">one clock for the whole round, not per question</span></h2>
+    <div class="row">
+      <button id="tmdStart" class="gold big">START THE ROUND</button>
+      <button id="tmdPause">Pause</button>
+      <button id="tmdReset">Reset</button>
+      <label class="f" style="width:120px">ROUND (SECONDS)
+        <input type="number" id="tmdLen" value="120" min="30" max="600"></label>
+      <span class="hint" id="tmdHint"></span>
+    </div>
+    <div class="hint">Questions come back to back off one running clock. A right answer moves the ball
+      by how fast it came; a wrong one costs <b>ten seconds</b> and no yards. Score and the ball goes
+      back to the 20 and you keep going. When the clock hits zero the round is whatever you banked.</div>
+  </section>
+
+  <section class="mpanel" id="p-sudden">
+    <h2><span class="n">3</span> Sudden death <span class="note">one wrong answer ends it</span></h2>
+    <div class="row">
+      <button id="sdReset" class="gold">New attempt</button>
+      <span class="hint" id="sdHint"></span>
+    </div>
+    <div class="hint">Every question is the whole season. Right and you keep driving, wrong and it is
+      over on the spot — the run is however far you got and however many you strung together.
+      Best run of the taping is tracked next to the current one.</div>
+  </section>
+
+  <section class="mpanel" id="p-wager">
+    <h2><span class="n">3</span> The wager <span class="note">call the yardage before the question goes up</span></h2>
+    <div class="row" id="wagerRow"></div>
+    <div class="row">
+      <span class="hint">Set the wager <b>before</b> serving — it goes on the overlay with the question so
+        the room can see what is at stake. Right answer gains it, wrong answer loses it, and a wager
+        that would take you past the goal line is trimmed to the distance left.</span>
+    </div>
+  </section>
+
   <section>
     <h2><span class="n">4</span> Look <span class="note">what the overlay shows</span></h2>
     <div class="row">
@@ -317,24 +383,12 @@ button kbd{ font-family:'DM Mono',monospace; font-size:10px; opacity:.65; margin
     <h2><span class="n">6</span> Questions <span class="note" id="poolNote"></span></h2>
     <div class="row">
       <button id="bankReset">Reset used questions</button>
-      <button id="bankToggle">Show the paste box</button>
+      <a href="editor.html" target="_blank"><button id="bankToggle">Write my own questions →</button></a>
+      <button id="bankReload">Reload my questions</button>
       <button id="bankExport">Copy the bank with sources</button>
       <span class="hint" id="bankHint"></span>
     </div>
-    <div id="bankBox" style="display:none">
-      <p class="hint" style="margin-bottom:8px">One a line, pipes between:
-        <span class="mono">question | right answer | wrong | wrong | wrong | tier | source</span> —
-        tier 1 plays early in the drive, 3 in the red zone. Leave the tier off and it lands in 2.
-        The source is free text and shows on this page when the question is served; anything pasted
-        without one gets flagged in red so it can't quietly go to air unchecked.</p>
-      <textarea id="bankText" rows="8" placeholder="Which team drafted Tom Brady?|Patriots|49ers|Browns|Jets|1"></textarea>
-      <div class="row" style="margin-top:8px">
-        <button id="bankLoad" class="gold">Load these</button>
-        <button id="bankClear">Back to the built-in bank</button>
-        <span class="hint" id="bankResult"></span>
-      </div>
-    </div>
-  </section>
+    <div class="hint" id="customNote" style="margin-top:6px"></div>  </section>
 </div>
 
 <div>
@@ -376,6 +430,11 @@ const S = {
   plate:{ kick:'JOMBOY MEDIA', name:'GOING THE\nDISTANCE', sub:'' },
   pal:{ offP:'#1b3a5c', offT:'#fbcc7a', defP:'#7c1d2b', defT:'#e8eef4', skin:'#b07a52' },
   clockDur:20,
+  filters:{ diff:'ladder', eras:GTD.ERAS.map(e => e[0]) },
+  chyron:[], lifelines:[], round:{ on:false, remain:0, running:false },
+  tmd:{ len:120, endsAt:0, remain:120, running:false, plays:0 },
+  sd:{ streak:0, best:0, bestYards:0, alive:true },
+  wg:{ wager:10 },
   q:null, qnum:0, used:{},
   drive:{ los:1, down:1, dist:10, first:11, score:0, ll:{ pi:true, to:true, cc:true }, safe:1, marks:[25, 50, 80] },
   h2h:{ ball:50, poss:0, step:5, bonus:false, target:55,
@@ -430,19 +489,27 @@ setInterval(() => {
 /* =====================================================================
    SERVING A QUESTION
    ===================================================================== */
+/* Ladder difficulty lets the field position choose, which is the Millionaire
+   ladder; anything else is the host's explicit call and overrides it. */
+function wantedDiff(){
+  if(S.filters.diff !== 'ladder') return +S.filters.diff;
+  return S.mode === 'h2h' ? 2 : GTD.tierFor(S.drive.los);
+}
 function serve(){
-  if(S.mode === 'drive' && (S.needNewDrive || S.drive.los >= 100)) newDrive(true);
-  const tier = S.mode === 'drive' ? GTD.tierFor(S.drive.los) : 2;
-  const q = GTD.draw(tier, S.used);
-  if(!q){ logLine('<span class="bad">the bank is empty — reset used questions</span>'); return; }
+  if(SOLO.includes(S.mode) && (S.needNewDrive || S.drive.los >= 100)) newDrive(true);
+  if(S.mode === 'sudden' && !S.sd.alive){ logLine('run is over — hit New attempt'); return; }
+  const q = GTD.draw({ diff:wantedDiff(), eras:S.filters.eras }, S.used);
+  if(!q){ logLine('<span class="bad">nothing left in the bank for that filter</span>'); return; }
   S.used[q.id] = 1;
-  S.q = { id:q.id, tier:q.tier, text:q.text, choices:q.choices, correct:q.correct,
-          cite:q.cite, lock:-1, reveal:false, gone:[], num:++S.qnum };
+  S.q = { id:q.id, tier:q.diff, era:q.era, text:q.text, choices:q.choices, correct:q.correct,
+          cite:q.cite, lock:-1, reveal:false, gone:[], num:++S.qnum,
+          wager:S.mode === 'wager' ? S.wg.wager : 0 };
   S.play = null; S.banner = { on:false, text:'', bad:false };
   fire('snap');
   startClock();
   renderQ(); renderSit();
-  logLine('<b>Q' + S.q.num + '</b> · tier ' + q.tier + ' · ' + esc(q.text));
+  poolNote();
+  logLine('<b>Q' + S.q.num + '</b> · ' + ['', 'easy', 'medium', 'hard'][q.diff] + ' · ' + q.era + ' · ' + esc(q.text));
 }
 
 function lock(i){
@@ -475,7 +542,17 @@ function reveal(forced){
   $('bandRead').textContent = (correct ? 'right' : S.q.lock < 0 ? 'no answer' : 'wrong') +
     ' in ' + e.toFixed(1) + 's  →  ' + res.label;
   renderQ();
-  if(S.mode === 'drive') advanceDrive(res, e); else advanceH2H(res, e);
+  route(res, e);
+}
+
+/* every mode that is one player driving one way shares the field state */
+const SOLO = ['drive', '2min', 'sudden', 'wager'];
+function route(res, e){
+  if(S.mode === 'h2h') return advanceH2H(res, e);
+  if(S.mode === '2min') return advanceTMD(res, e);
+  if(S.mode === 'sudden') return advanceSudden(res, e);
+  if(S.mode === 'wager') return advanceWager(res, e);
+  return advanceDrive(res, e);
 }
 
 /* =====================================================================
@@ -561,6 +638,148 @@ function kickFG(){
   S.play = play; S.needNewDrive = true;
   fire(good ? 'fieldgoal' : 'wrong');
   logLine('<b>' + att + '-yard field goal</b> — ' + (good ? 'good' : 'no good'), good ? 'good' : 'bad');
+  renderSit(); publish(true);
+}
+
+/* =====================================================================
+   TWO-MINUTE DRILL
+
+   One clock for the whole round instead of one per question, which changes
+   the rhythm completely: there is no time to deliberate, and a wrong answer
+   costs you the clock rather than the down.
+   ===================================================================== */
+function tmdRemain(){
+  if(!S.tmd.running) return S.tmd.remain;
+  return Math.max(0, (S.tmd.endsAt - Date.now()) / 1000);
+}
+function tmdSet(sec){
+  S.tmd.remain = Math.max(0, sec);
+  if(S.tmd.running) S.tmd.endsAt = Date.now() + S.tmd.remain * 1000;
+}
+function tmdStart(){
+  S.tmd.running = true;
+  S.tmd.endsAt = Date.now() + S.tmd.remain * 1000;
+  S.banner = { on:false, text:'', bad:false };
+  publish(true); logLine('two-minute drill: clock running');
+}
+function tmdPause(){
+  S.tmd.remain = tmdRemain(); S.tmd.running = false;
+  publish(true); logLine('clock stopped at ' + S.tmd.remain.toFixed(1) + 's');
+}
+function tmdReset(){
+  S.tmd.len = Math.max(30, Math.min(600, +$('tmdLen').value || 120));
+  S.tmd = { len:S.tmd.len, endsAt:0, remain:S.tmd.len, running:false, plays:0 };
+  S.drive.los = 20; S.drive.score = 0; S.play = null; S.needNewDrive = false;
+  S.banner = { on:false, text:'', bad:false };
+  renderSit(); publish(true); logLine('two-minute drill reset');
+}
+function advanceTMD(res, elapsed){
+  const D = S.drive;
+  S.tmd.plays++;
+  const from = D.los;
+  let banner = null, bad = false, cue;
+  let to = from, td = false;
+
+  if(res.good){
+    to = Math.max(0, Math.min(100, Math.round(from + res.yards)));
+    td = to >= 100;
+    cue = td ? 'touchdown' : (res.key === 'bomb' || res.key === 'big') ? 'bigplay' : 'correct';
+  } else {
+    /* the clock is the currency here, not the down */
+    tmdSet(tmdRemain() - 10);
+    cue = 'wrong'; bad = true;
+    banner = 'INCOMPLETE — TEN SECONDS OFF THE CLOCK';
+  }
+
+  const play = { id:++S.playId, key:res.good ? res.key : 'inc',
+                 label:td ? 'TOUCHDOWN' : res.good ? res.label : 'INCOMPLETE',
+                 sub:res.good ? null : '−10 SECONDS',
+                 yards:res.good ? to - from : 0, good:!!res.good, td:td, from:from, to:to };
+
+  if(td){ D.score += 7; D.los = 20; banner = 'TOUCHDOWN — BALL BACK ON THE 20'; bad = false; }
+  else if(res.good) D.los = to;
+
+  if(tmdRemain() <= 0){
+    S.tmd.running = false; S.tmd.remain = 0;
+    banner = 'TIME — ' + D.score + ' POINTS IN THE DRILL'; bad = false; cue = 'turnover';
+  }
+  S.play = play;
+  S.banner = banner ? { on:true, text:banner, bad:bad } : { on:false, text:'', bad:false };
+  fire(cue);
+  logLine('<b>' + play.label + '</b> · ' + elapsed.toFixed(1) + 's · ' +
+          tmdRemain().toFixed(0) + 's left · ' + D.score + ' pts', res.good ? 'good' : 'bad');
+  renderSit(); publish(true);
+}
+
+/* =====================================================================
+   SUDDEN DEATH — one wrong answer ends the run
+   ===================================================================== */
+function sdReset(){
+  S.sd.streak = 0; S.sd.alive = true;
+  S.drive.los = 1; S.drive.score = 0; S.play = null; S.needNewDrive = false;
+  S.banner = { on:false, text:'', bad:false };
+  renderSit(); publish(true); logLine('sudden death: new attempt');
+}
+function advanceSudden(res, elapsed){
+  const D = S.drive;
+  const from = D.los;
+  let banner = null, bad = false, cue, td = false;
+  let to = from;
+
+  if(res.good){
+    to = Math.max(0, Math.min(100, Math.round(from + res.yards)));
+    td = to >= 100;
+    S.sd.streak++;
+    cue = td ? 'touchdown' : (res.key === 'bomb' || res.key === 'big') ? 'bigplay' : 'correct';
+    D.los = td ? 20 : to;
+    if(td){ D.score += 7; banner = 'TOUCHDOWN — STILL ALIVE, BACK ON THE 20'; }
+  } else {
+    S.sd.alive = false;
+    cue = 'turnover'; bad = true;
+    banner = 'THE RUN IS OVER — ' + S.sd.streak + ' IN A ROW, ' + D.score + ' POINTS';
+    if(S.sd.streak > S.sd.best){ S.sd.best = S.sd.streak; S.sd.bestYards = D.score; }
+  }
+
+  S.play = { id:++S.playId, key:res.good ? res.key : 'sack',
+             label:td ? 'TOUCHDOWN' : res.good ? res.label : 'THAT IS THE BALLGAME',
+             sub:res.good ? null : S.sd.streak + ' IN A ROW',
+             yards:res.good ? to - from : -3, good:!!res.good, td:td,
+             from:from, to:res.good ? to : Math.max(0, from - 3) };
+  S.banner = banner ? { on:true, text:banner, bad:bad } : { on:false, text:'', bad:false };
+  fire(cue);
+  logLine('<b>' + S.play.label + '</b> · streak ' + S.sd.streak, res.good ? 'good' : 'bad');
+  renderSit(); publish(true);
+}
+
+/* =====================================================================
+   THE WAGER — call the yardage before the question goes up
+   ===================================================================== */
+function advanceWager(res, elapsed){
+  const D = S.drive;
+  const from = D.los;
+  const bet = S.q && S.q.wager ? S.q.wager : S.wg.wager;
+  let banner = null, bad = false, cue, td = false, to;
+
+  if(res.good){
+    to = Math.min(100, from + bet);
+    td = to >= 100;
+    cue = td ? 'touchdown' : bet >= 25 ? 'bigplay' : 'correct';
+    if(td){ D.score += 7; banner = 'TOUCHDOWN — ' + bet + '-YARD CALL PAID OFF'; D.los = 1; S.needNewDrive = true; }
+    else D.los = to;
+  } else {
+    to = Math.max(1, from - bet);
+    D.los = to;
+    cue = 'sack'; bad = true;
+    banner = 'MISSED THE CALL — ' + bet + ' YARDS THE OTHER WAY';
+  }
+
+  S.play = { id:++S.playId, key:res.good ? (bet >= 25 ? 'bomb' : 'solid') : 'sack',
+             label:td ? 'TOUCHDOWN' : res.good ? 'CALLED IT' : 'MISSED THE CALL',
+             sub:(res.good ? '+' : '−') + bet + ' YARDS',
+             yards:res.good ? bet : -bet, good:!!res.good, td:td, from:from, to:to };
+  S.banner = banner ? { on:true, text:banner, bad:bad } : { on:false, text:'', bad:false };
+  fire(cue);
+  logLine('<b>' + S.play.label + '</b> · wagered ' + bet + ' · now ' + GTD.spot(D.los), res.good ? 'good' : 'bad');
   renderSit(); publish(true);
 }
 
@@ -652,9 +871,82 @@ function sit(k, v, cls){
   d.append(el('k', k), el('v ' + (cls || ''), v));
   return d;
 }
+/* The overlay renders whatever cells it is handed, so every game rule stays
+   on this side of the wire. Each mode describes its own chyron here. */
+function buildChyron(){
+  const D = S.drive, C = [];
+  S.lifelines = [];
+  if(S.mode === 'h2h'){
+    const H = S.h2h, T = H.teams;
+    const spot = H.ball === 50 ? 'MIDFIELD'
+      : H.ball > 50 ? T[1].name.slice(0, 4) + ' ' + (100 - H.ball)
+      : T[0].name.slice(0, 4) + ' ' + H.ball;
+    C.push({ k:H.poss === 0 ? '● BALL' : 'ON DECK', v:T[0].name + ' ' + T[0].score, swatch:T[0].color, poss:H.poss === 0 });
+    C.push({ k:'BALL ON', v:(H.poss === 0 ? '▶  ' : '◀  ') + spot + (H.poss === 0 ? '  ▶' : '  ◀'), cls:'gold', grow:true });
+    C.push({ k:H.poss === 1 ? '● BALL' : 'ON DECK', v:T[1].name + ' ' + T[1].score, swatch:T[1].color, poss:H.poss === 1 });
+  } else if(S.mode === '2min'){
+    C.push({ k:'ON THE CLOCK', v:'--', cls:'gold', clock:true });
+    C.push({ k:'BALL ON', v:GTD.spot(D.los) });
+    C.push({ k:'TO THE HOUSE', v:Math.max(0, 100 - Math.round(D.los)) + ' YDS', grow:true });
+    C.push({ k:'PLAYS', v:String(S.tmd.plays) });
+    C.push({ k:'POINTS', v:String(D.score), cls:'gold' });
+  } else if(S.mode === 'sudden'){
+    C.push({ k:'IN A ROW', v:String(S.sd.streak), cls:'gold' });
+    C.push({ k:'BALL ON', v:GTD.spot(D.los) });
+    C.push({ k:'TO THE HOUSE', v:Math.max(0, 100 - Math.round(D.los)) + ' YDS', grow:true });
+    C.push({ k:S.sd.alive ? 'STILL ALIVE' : 'RUN OVER', v:S.sd.alive ? 'YES' : 'NO', cls:S.sd.alive ? '' : 'gold' });
+    C.push({ k:'BEST TODAY', v:String(S.sd.best) });
+  } else if(S.mode === 'wager'){
+    C.push({ k:'THE CALL', v:S.wg.wager + ' YDS', cls:'gold' });
+    C.push({ k:'BALL ON', v:GTD.spot(D.los) });
+    C.push({ k:'TO THE HOUSE', v:Math.max(0, 100 - Math.round(D.los)) + ' YDS', grow:true });
+    C.push({ k:'POINTS', v:String(D.score), cls:'gold' });
+  } else {
+    C.push({ k:'DOWN', v:GTD.distText(D.down, D.dist, D.los), cls:'gold' });
+    C.push({ k:'BALL ON', v:GTD.spot(D.los) });
+    C.push({ k:'TO THE HOUSE', v:Math.max(0, 100 - Math.round(D.los)) + ' YDS', cls:'gold', grow:true });
+    C.push({ k:'POINTS', v:String(D.score), cls:'gold' });
+    S.lifelines = [['pi', 'PASS INT.'], ['to', 'TIMEOUT'], ['cc', 'CHALLENGE']]
+      .map(([k, t]) => ({ t:t, on:!!D.ll[k] }));
+  }
+  S.chyron = C;
+  S.round = S.mode === '2min'
+    ? { on:true, remain:+tmdRemain().toFixed(1), running:S.tmd.running }
+    : { on:false, remain:0, running:false };
+}
+
 function renderSit(){
+  buildChyron();
   const host = $('sitrep'); host.innerHTML = '';
-  if(S.mode === 'drive'){
+  if(S.mode === '2min'){
+    const D = S.drive;
+    host.append(
+      sit('ON THE CLOCK', tmdRemain().toFixed(1) + 's', tmdRemain() < 20 ? 'red' : 'gold'),
+      sit('BALL ON', GTD.spot(D.los)),
+      sit('POINTS', String(D.score), 'green'),
+      sit('PLAYS', String(S.tmd.plays))
+    );
+    $('tmdHint').textContent = S.tmd.running ? 'running' : (S.tmd.remain > 0 ? 'stopped at ' + S.tmd.remain.toFixed(1) + 's' : 'time');
+  } else if(S.mode === 'sudden'){
+    const D = S.drive;
+    host.append(
+      sit('IN A ROW', String(S.sd.streak), 'gold'),
+      sit('BALL ON', GTD.spot(D.los)),
+      sit('POINTS', String(D.score), 'green'),
+      sit('STATUS', S.sd.alive ? 'ALIVE' : 'OVER', S.sd.alive ? 'green' : 'red'),
+      sit('BEST TODAY', String(S.sd.best))
+    );
+    $('sdHint').textContent = S.sd.alive ? 'run is live' : 'run is over — hit New attempt';
+  } else if(S.mode === 'wager'){
+    const D = S.drive;
+    host.append(
+      sit('THE CALL', S.wg.wager + ' YDS', 'gold'),
+      sit('BALL ON', GTD.spot(D.los)),
+      sit('TO THE HOUSE', Math.max(0, 100 - D.los) + ' YDS'),
+      sit('POINTS', String(D.score), 'green')
+    );
+    paintWager();
+  } else if(S.mode === 'drive'){
     const D = S.drive;
     host.append(
       sit('DOWN', GTD.distText(D.down, D.dist, D.los), 'gold'),
@@ -772,15 +1064,36 @@ function poolNote(){
   const nosrc = pool.filter(q => !q.src).length;
   $('poolNote').textContent = left + ' of ' + pool.length + ' left this taping' +
     (nosrc ? ' \u00b7 ' + nosrc + ' with no source' : ' \u00b7 all cited');
-  const byTier = [1, 2, 3].map(t => pool.filter(q => q.tier === t && !S.used[q.id]).length);
-  $('bankHint').textContent = 'tier 1: ' + byTier[0] + ' · tier 2: ' + byTier[1] + ' · tier 3: ' + byTier[2];
+  const byDiff = [1, 2, 3].map(d => pool.filter(q => q.diff === d && !S.used[q.id]).length);
+  $('bankHint').textContent = 'easy ' + byDiff[0] + ' · medium ' + byDiff[1] + ' · hard ' + byDiff[2];
+  /* what the live filter can actually still serve — a filter that has quietly
+     run dry is something to find out about before you are on camera */
+  const n = GTD.count({ diff:S.filters.diff === 'ladder' ? 0 : +S.filters.diff, eras:S.filters.eras }, S.used);
+  const fc = $('filterCount');
+  fc.textContent = n + ' question' + (n === 1 ? '' : 's') + ' fit this filter';
+  fc.className = 'hint' + (n < 8 ? ' warn' : '');
 }
 $('bankReset').onclick = () => { S.used = {}; poolNote(); logLine('question bank reset'); };
-$('bankToggle').onclick = () => {
-  const b = $('bankBox');
-  b.style.display = b.style.display === 'none' ? 'block' : 'none';
-  $('bankToggle').textContent = b.style.display === 'none' ? 'Show the paste box' : 'Hide the paste box';
-};
+
+/* The editor writes to this browser's storage; the control page reads it.
+   That keeps one place to author questions and one place to play them. */
+function loadCustom(){
+  let custom = [];
+  const mode = localStorage.getItem('gtd_bankmode') || 'both';
+  try{ custom = JSON.parse(localStorage.getItem('gtd_custom') || '[]') || []; }catch(e){ custom = []; }
+  const ok = custom.filter(r => r && r.text && r.right && (r.wrong || []).filter(Boolean).length >= 3);
+  GTD.rebuildPool(mode === 'builtin' ? [] : ok, { customOnly:mode === 'mine' });
+  const label = mode === 'mine' ? 'playing <b>your questions only</b>'
+    : mode === 'builtin' ? 'playing the <b>built-in bank only</b> — yours are parked'
+    : 'playing <b>both banks together</b>';
+  $('customNote').innerHTML = label + ' · ' + ok.length + ' of yours loaded' +
+    (custom.length > ok.length ? ' · <span class="warn">' + (custom.length - ok.length) + ' unfinished in the editor</span>' : '') +
+    ' · <a href="editor.html" target="_blank" style="color:var(--gold)">edit them</a>';
+  S.used = {};
+  poolNote();
+  return ok.length;
+}
+$('bankReload').onclick = () => { const n = loadCustom(); logLine('reloaded questions · ' + n + ' of yours'); };
 /* Dump every question, its answer and its citation as TSV so the whole bank can
    be read through in a doc before a taping rather than one at a time at the desk. */
 $('bankExport').onclick = () => {
@@ -795,17 +1108,6 @@ $('bankExport').onclick = () => {
     setTimeout(() => { $('bankExport').textContent = 'Copy the bank with sources'; }, 2200);
   }).catch(() => prompt('Copy this:', tsv));
 };
-$('bankLoad').onclick = () => {
-  const { rows, bad } = GTD.parseImport($('bankText').value);
-  if(!rows.length){ $('bankResult').innerHTML = '<span class="warn">nothing readable in there</span>'; return; }
-  GTD.rebuildPool(rows);
-  S.used = {};
-  $('bankResult').innerHTML = rows.length + ' added' +
-    (bad.length ? ' · <span class="warn">skipped line' + (bad.length > 1 ? 's ' : ' ') + bad.join(', ') + '</span>' : '');
-  poolNote();
-  logLine('loaded ' + rows.length + ' custom questions');
-};
-$('bankClear').onclick = () => { GTD.rebuildPool(); S.used = {}; poolNote(); $('bankResult').textContent = 'back to the built-in bank'; };
 
 /* =====================================================================
    PAYLOAD
@@ -826,9 +1128,10 @@ function payload(n){
     } : { on:false },
     clock:{ on:!!(S.showClock && S.q && S.showQ), dur:S.clockDur, seq:S.clock.seq,
             run:S.clock.run, elapsed:+clockElapsed().toFixed(2) },
-    pal:S.pal, play:S.play, cue:S.cue
+    pal:S.pal, play:S.play, cue:S.cue,
+    chyron:S.chyron, lifelines:S.lifelines, round:S.round
   };
-  if(S.mode === 'drive') out.drive = S.drive; else out.h2h = S.h2h;
+  if(S.mode === 'h2h') out.h2h = S.h2h; else out.drive = S.drive;
   return JSON.stringify(out);
 }
 /* everything the overlay actually draws, minus the running clock — otherwise
@@ -836,6 +1139,10 @@ function payload(n){
 function visibleSig(){
   const p = JSON.parse(payload(0));
   delete p.clock.elapsed;
+  /* the round clock ticks every time this is called and the overlay runs its
+     own copy anyway — leaving it in would make every repaint look like a
+     change worth a message, which is how you get rate-limited mid-show */
+  if(p.round) delete p.round.remain;
   return JSON.stringify(p);
 }
 
@@ -987,7 +1294,42 @@ function setMode(m){
   document.querySelectorAll('.mtab').forEach(t => t.classList.toggle('on', t.dataset.m === m));
   document.querySelectorAll('.mpanel').forEach(p => p.classList.toggle('on', p.id === 'p-' + m));
   S.q = null; S.play = null; S.banner = { on:false, text:'', bad:false };
+  /* each mode wants a different spot on the field to open from */
+  if(m === '2min'){ S.drive.los = 20; S.tmd.plays = 0; S.clockDur = Math.min(S.clockDur, 10); }
+  else if(m === 'sudden'){ S.drive.los = 1; S.sd.streak = 0; S.sd.alive = true; }
+  else if(m === 'wager'){ S.drive.los = 20; }
+  S.drive.down = 1; S.drive.dist = 10; S.drive.first = Math.min(110, S.drive.los + 10);
+  S.drive.marks = m === 'drive' ? [25, 50, 80] : [];
+  $('clockDur').value = S.clockDur;
+  S.needNewDrive = false;
   renderQ(); renderSit(); publish(true);
+}
+
+/* ---- filters ---- */
+function paintEras(){
+  const host = $('eraChips'); host.innerHTML = '';
+  GTD.ERAS.forEach(([k, label]) => {
+    const d = el('chip' + (S.filters.eras.includes(k) ? ' on' : ''), label);
+    d.onclick = () => {
+      const i = S.filters.eras.indexOf(k);
+      if(i > -1) S.filters.eras.splice(i, 1); else S.filters.eras.push(k);
+      /* an empty era list would serve from nothing, so never allow it */
+      if(!S.filters.eras.length) S.filters.eras.push(k);
+      paintEras(); poolNote();
+    };
+    host.appendChild(d);
+  });
+}
+function paintWager(){
+  const host = $('wagerRow'); if(!host) return;
+  host.innerHTML = '';
+  [5, 10, 15, 20, 25, 30, 40].forEach(n => {
+    const b = document.createElement('button');
+    b.textContent = n + ' yards';
+    b.className = S.wg.wager === n ? 'on' : '';
+    b.onclick = () => { S.wg.wager = n; renderSit(); publish(true); };
+    host.appendChild(b);
+  });
 }
 document.querySelectorAll('.mtab').forEach(t => t.onclick = () => setMode(t.dataset.m));
 
@@ -1023,6 +1365,12 @@ $('newDrive').onclick = () => newDrive(false);
     if(S.mode === 'drive') advanceDrive(f, clockElapsed()); else advanceH2H(f, clockElapsed());
   };
 });
+$('diffPick').onchange = e => { S.filters.diff = e.target.value; poolNote(); };
+$('tmdStart').onclick = tmdStart;
+$('tmdPause').onclick = tmdPause;
+$('tmdReset').onclick = tmdReset;
+$('tmdLen').onchange = tmdReset;
+$('sdReset').onclick = sdReset;
 $('applySit').onclick = () => {
   const D = S.drive;
   D.los = Math.max(1, Math.min(99, +$('setLos').value || D.los));
@@ -1098,7 +1446,11 @@ advanceH2H  = function(res, e){ S.lastSnapshot = JSON.stringify({ drive:S.drive,
 if(!TOPIC){
   $('topicInput').value = 'jomboy-gtd-' + Math.random().toString(36).slice(2, 7);
 }
-renderSit(); renderQ(); poolNote(); meter(); loadPreview();
+loadCustom();
+paintEras(); paintWager(); renderSit(); renderQ(); poolNote(); meter(); loadPreview();
+/* the round clock is the only thing that moves on its own; repaint the desk
+   from it without publishing, because the overlay runs its own copy */
+setInterval(() => { if(S.mode === '2min' && S.tmd.running) renderSit(); }, 250);
 if(TOPIC){ $('connStatus').textContent = 'topic remembered — hit Connect'; }
 logLine('ready · ' + GTD.POOL().length + ' questions loaded');
 </script>

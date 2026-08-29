@@ -130,7 +130,7 @@ addEventListener('resize', autoScale);
    STATE
    ===================================================================== */
 let ST = {
-  mode:'drive',
+  mode:'drive', chyron:[], lifelines:[],
   plate:{ on:true, kick:"JOMBOY MEDIA", name:"GOING THE\nDISTANCE", sub:"" },
   banner:{ on:false, text:'', bad:false },
   q:{ on:false, text:'', choices:[], correct:0, tier:1, lock:-1, reveal:false, gone:[], num:1 },
@@ -181,7 +181,7 @@ function animSpec(){
     },
     ez:{ own:shade(mode === 'h2h' ? ST.h2h.teams[1].color : ST.pal.offP),
          opp:shade(mode === 'h2h' ? ST.h2h.teams[0].color : ST.pal.defP) },
-    marks:mode === 'drive' ? (ST.drive.marks || [25, 50, 80]) : []
+    marks:mode === 'h2h' ? [] : (ST.drive.marks || [])
   };
 
   const dirFlip = mode === 'h2h' && ST.h2h.poss === 1;
@@ -273,6 +273,7 @@ function frame(){
     if(t > anim.pre + anim.run + anim.hold){ anim = null; hideCall(); }
   }
   paintClock();
+  paintRound();
 }
 function loop(){ frame(); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
@@ -293,46 +294,37 @@ setInterval(() => { if(now() - lastFrame > 400) frame(); }, 250);
 /* =====================================================================
    CHYRON
    ===================================================================== */
-function cell(kind, k, v, cls){
-  const d = document.createElement('div');
-  d.className = 'cell ' + (kind || '');
-  const kk = document.createElement('div'); kk.className = 'k'; kk.textContent = k;
-  const vv = document.createElement('div'); vv.className = 'v ' + (cls || ''); vv.textContent = v;
-  d.append(kk, vv);
-  return d;
-}
+/* The control page decides what the chyron says, and ships it as a list of
+   cells. That keeps every game rule on one side of the wire: adding a mode
+   means adding cells to a payload, not teaching the overlay a new game. */
 function renderChyron(){
-  const host = $('chyron'); host.innerHTML = '';
-  if(ST.mode === 'h2h'){
-    const T = ST.h2h.teams, b = ST.h2h.ball;
-    T.forEach((tm, i) => {
-      const d = document.createElement('div');
-      d.className = 'cell team' + (ST.h2h.poss === i ? ' poss' : '');
-      const kk = document.createElement('div'); kk.className = 'k';
-      kk.textContent = ST.h2h.poss === i ? '● BALL' : 'ON DECK';
-      const vv = document.createElement('div'); vv.className = 'v';
-      const sw = document.createElement('span'); sw.className = 'swatch'; sw.style.background = tm.color;
-      const nm = document.createElement('span'); nm.textContent = tm.name + ' ' + tm.score;
-      vv.append(sw, nm); d.append(kk, vv); host.appendChild(d);
-      if(i === 0){
-        const arrow = ST.h2h.poss === 0 ? '▶' : '◀';
-        const spotTxt = b === 50 ? 'MIDFIELD' : b > 50 ? T[1].name.slice(0,4) + ' ' + (100 - b) : T[0].name.slice(0,4) + ' ' + b;
-        host.appendChild(cell('grow', 'BALL ON', arrow + '  ' + spotTxt + '  ' + arrow, 'gold'));
-      }
-    });
-  } else {
-    const D = ST.drive;
-    host.appendChild(cell('down', 'DOWN', GTD.distText(D.down, D.dist, D.los)));
-    host.appendChild(cell('', 'BALL ON', GTD.spot(D.los)));
-    host.appendChild(cell(layout === 'vert' ? '' : 'grow', 'TO THE HOUSE', Math.max(0, 100 - Math.round(D.los)) + ' YDS', 'gold'));
+  const host = $('chyron');
+  host.innerHTML = '';
+  (ST.chyron || []).forEach(c => {
+    const d = document.createElement('div');
+    d.className = 'cell' + (c.grow ? ' grow' : '') + (c.poss ? ' team poss' : c.swatch ? ' team' : '');
+    const kk = document.createElement('div'); kk.className = 'k'; kk.textContent = c.k || '';
+    const vv = document.createElement('div'); vv.className = 'v ' + (c.cls || '');
+    if(c.clock){ vv.id = 'roundCell'; vv.textContent = roundText(); }
+    else if(c.swatch){
+      const sw = document.createElement('span'); sw.className = 'swatch'; sw.style.background = c.swatch;
+      const nm = document.createElement('span'); nm.textContent = c.v == null ? '' : String(c.v);
+      vv.append(sw, nm);
+    } else {
+      vv.textContent = c.v == null ? '' : String(c.v);
+    }
+    d.append(kk, vv);
+    host.appendChild(d);
+  });
+  if(ST.lifelines && ST.lifelines.length){
     const ll = document.createElement('div');
     ll.className = 'cell lifelines' + (layout === 'vert' ? ' wide' : ' grow');
-    [['pi','PASS INT.'], ['to','TIMEOUT'], ['cc','CHALLENGE']].forEach(([k, label]) => {
-      const s = document.createElement('span');
-      s.className = 'll ' + (D.ll && D.ll[k] ? 'live' : 'used');
-      s.textContent = label; ll.appendChild(s);
+    ST.lifelines.forEach(l => {
+      const sp = document.createElement('span');
+      sp.className = 'll ' + (l.on ? 'live' : 'used');
+      sp.textContent = l.t;
+      ll.appendChild(sp);
     });
-    host.appendChild(cell('', 'POINTS', String(D.score), 'gold'));
     host.appendChild(ll);
   }
 }
@@ -387,6 +379,26 @@ function fitText(text, choices){
    the real timing is measured on the control page anyway, so what matters
    here is that the bar starts when the question does.
    ===================================================================== */
+/* The round clock in the two-minute drill belongs to the control page, but
+   redrawing it there once a second would be a message a second. It ships a
+   remaining value whenever anything else changes and the overlay counts down
+   from that on its own. */
+let roundT0 = 0, roundRemain = 0, roundRunning = false, roundOn = false;
+function roundLeft(){
+  if(!roundRunning) return roundRemain;
+  return Math.max(0, roundRemain - (now() - roundT0) / 1000);
+}
+function roundText(){
+  const t = roundLeft();
+  const m = Math.floor(t / 60), sec = Math.floor(t % 60);
+  return m + ':' + (sec < 10 ? '0' : '') + sec;
+}
+function paintRound(){
+  if(!roundOn) return;
+  const cell = $('roundCell');
+  if(cell) cell.textContent = roundText();
+}
+
 let clockT0 = 0, clockSeq = -1, clockDur = 20, clockOn = false;
 const SEGS = 24;
 function paintClock(){
@@ -462,7 +474,11 @@ if(SOUND){
    ===================================================================== */
 function apply(st){
   if(!st || typeof st !== 'object') return;
-  ['mode','plate','banner','q','drive','h2h','pal'].forEach(k => { if(st[k] !== undefined) ST[k] = st[k]; });
+  ['mode','plate','banner','q','drive','h2h','pal','chyron','lifelines'].forEach(k => { if(st[k] !== undefined) ST[k] = st[k]; });
+  if(st.round){
+    roundOn = !!st.round.on; roundRunning = !!st.round.running;
+    roundRemain = +st.round.remain || 0; roundT0 = now();
+  }
   if(st.card && st.card !== cardSize){ cardSize = st.card; applyCard(); }
   if(st.layout && !URL_LAYOUT) setLayout(st.layout);
 

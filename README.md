@@ -12,6 +12,7 @@ two. Miss it and you're eating a sack.
 index.html     the door
 control.html   the host panel — keep this off camera
 display.html   the 8-bit field — this is the OBS browser source
+editor.html    write your own questions
 gtd.js         question bank, play engine, pixel art, audio
 gtd.css        overlay styling for all three layouts
 ```
@@ -43,7 +44,31 @@ gtd.css        overlay styling for all three layouts
 
 ---
 
-## The two games
+## Difficulty and era
+
+Two pickers sit above every game.
+
+**Difficulty** is Easy, Medium, Hard, or **Ladder** — where the field position picks it for you,
+so the defence stiffens the closer you get to the end zone. That's Millionaire's money ladder
+wearing a helmet, and it's the default.
+
+**Eras** are chips: Evergreen, the 70s, 80s, 90s, 2000s, 2010s, 2020s. Tick any combination. A
+whole round can be all 1990s, or 80s-and-90s only, or the 2020s for a younger room. *Evergreen* is
+the rules, the all-time records, the nicknames and the venues — the questions that don't belong to
+a decade.
+
+Difficulty is graded **within its era**, not by how long ago it happened. Someone who picks the
+1970s knows who won Super Bowl IX; marking that hard just because it's old would make every era
+filter unplayable at the easy setting. Every era × difficulty pair has at least eight questions in
+it, and the control page prints a live count of what the current filter can still serve — a filter
+that has quietly run dry is something to find out about before you're on camera.
+
+When the bank does run thin, the game **gives up difficulty before it gives up the era**: the era
+is your deliberate creative choice, so it widens to the next difficulty first, then allows
+repeats, and only a completely empty era falls back to the whole bank. It never comes up empty
+mid-show.
+
+## The games
 
 ### Going the Distance — the drive
 
@@ -84,6 +109,28 @@ Ball on the 50. Every right answer moves it five yards your way and you keep it;
 answer is a turnover on the spot and the other side takes over driving the other way. Reach the
 end zone for 7 and it goes back to the 50. The yards-per-answer and an optional
 *double it under five seconds* bonus are both on the control page.
+
+### Two-Minute Drill
+
+**One clock for the whole round instead of one per question**, which changes the rhythm
+completely — there's no time to deliberate. Questions come back to back; a right answer moves the
+ball by how fast it came, a wrong one costs **ten seconds** and no yards. Score and the ball goes
+back to the 20 and you keep going. When the clock hits zero the round is whatever you banked. The
+overlay runs its own copy of the round clock off the last value it was handed, so a ticking clock
+costs no messages.
+
+### Sudden Death
+
+Every question is the whole season. Right and you keep driving, wrong and it's over on the spot —
+the run is however far you got and however many you strung together. Best run of the taping is
+tracked next to the current one, which is what makes people want another go.
+
+### The Wager
+
+Call the yardage **before** the question goes up — 5 to 40. It goes on the overlay with the
+question so the room can see what's at stake. Right answer gains it, wrong answer loses it, and a
+wager that would take you past the goal line is trimmed to the distance left. The decision is the
+game here, not the clock.
 
 ---
 
@@ -144,10 +191,14 @@ box that appears top-right.
 
 ## Questions
 
-**99 built in, and every one carries a citation.** The control page prints the source under the
+**373 built in, and every one carries a citation.** The control page prints the source under the
 question as it serves it, so if a contestant argues the answer is on the screen in front of you.
-**Copy the bank with sources** in section 6 dumps all 99 as TSV — question, answer, source, URL —
-to read through in a doc before a taping.
+**Copy the bank with sources** dumps all of them as TSV — question, answer, source, URL — to read
+through in a doc before a taping.
+
+The bulk of the era questions are generated straight off four reference tables — every Super Bowl
+result, every Super Bowl MVP, every AP MVP season, every first overall pick — so each one is true
+by construction of the table it came from, and the table itself was checked against its page.
 
 Every question was checked against its cited page in **August 2026**. The first cut of this bank
 was written from memory and the pass turned up two that were wrong:
@@ -168,19 +219,29 @@ Records move, and a citation is only true as of the day it was checked. The ones
 shift: the single-season and career leaders, *"which of these has never played in a Super Bowl"*,
 anything naming a current head coach, and the recent-draft questions.
 
-### Your own questions
+### Writing your own — `editor.html`
 
-Open the paste box in section 6 and give it one a line:
+There's a whole page for it. A table with a row per question: the question, the right answer in
+its own column, three wrong ones, difficulty, era and a source. It saves to the browser as you
+type and the control page picks it up on its next reload — no files to move.
+
+Every row is checked as you write it. An **error** in red (no question, no answer, fewer than
+three wrong answers, the same answer twice) keeps that row out of the game entirely. A **warning**
+in amber — no source — lets it play but counts it on the control page, so an unchecked question
+can't quietly go to air.
+
+A **coverage** panel shows easy / medium / hard for each era against whichever banks are switched
+on, so you can see the gap before you find it live. And a switch at the top decides what the game
+plays from: **built-in only**, **mine only**, or **both together**.
+
+Paste a batch in with one a line:
 
 ```
-question | right answer | wrong | wrong | wrong | tier | source
+question | right answer | wrong | wrong | wrong | difficulty 1-3 | era | source
 ```
 
-The right answer always goes first and the four choices get shuffled when the question is
-served, so you never have to count letters. Tier is optional and defaults to 2. The source is
-free text — anything pasted **without** one gets flagged in red on the control page and counted in
-the header, so an unchecked question can't quietly go to air. Loading your own replaces the
-built-in bank; **Back to the built-in bank** puts it back.
+Era is one of `any 70s 80s 90s 00s 10s 20s`. **Copy mine out** and **Download as .txt** get a
+question set out of one browser and into another.
 
 ### Where the answers come from
 
