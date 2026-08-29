@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Going the Distance — Play</title>
+<link rel="stylesheet" href="gtd.css">
+<style>
+/* The self-serve page is the overlay plus the two things a broadcast overlay
+   never needs: something to press, and somewhere to start and finish. */
+body.play{ background:radial-gradient(120% 70% at 50% 0%, #16344c 0%, transparent 62%), var(--navy); }
+body.play #diag{ display:none; }
+
+/* the choices become buttons */
+body.play .ch{ cursor:pointer; -webkit-tap-highlight-color:transparent; padding:calc(16px * var(--s2)) calc(18px * var(--s2)); }
+body.play #qcard{ --cw:.8; }
+body.play.lay-vert #qcard{ --cw:1; }
+body.play.live .ch:not(.gone):hover{ background:#17395c; border-color:var(--gold); }
+body.play.live .ch:not(.gone):active{ transform:translateY(2px); }
+body.play.locked .ch{ cursor:default; }
+
+.screen{
+  position:fixed; inset:0; z-index:50; display:none;
+  align-items:center; justify-content:center; padding:24px;
+  background:radial-gradient(120% 70% at 50% 0%, #16344c 0%, transparent 62%), var(--navy);
+  overflow-y:auto;
+}
+.screen.on{ display:flex; }
+.sheet{ width:100%; max-width:820px; }
+.kick{ font-family:var(--pixel); font-size:12px; letter-spacing:3px; color:var(--gold); }
+.big{ font-family:var(--disp); font-size:clamp(48px,9vw,86px); line-height:.92; letter-spacing:1px; margin:10px 0 6px; }
+.big span{ color:var(--gold); }
+.sub{ color:var(--dim); font-size:15px; line-height:1.6; max-width:620px; }
+h3{ font-family:var(--pixel); font-size:12px; letter-spacing:2px; color:var(--gold); margin:26px 0 10px; }
+.opts{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; }
+.opt{
+  text-align:left; cursor:pointer; padding:14px 16px; border:2px solid var(--edge);
+  background:#0f2740; color:var(--ink);
+  clip-path:polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+}
+.opt:hover{ border-color:var(--gold); }
+.opt.on{ border-color:var(--gold); background:#1d4064; }
+.opt .t{ font-family:var(--disp); font-size:26px; letter-spacing:.5px; line-height:1; }
+.opt.on .t{ color:var(--gold); }
+.opt .d{ font-size:12px; color:var(--dim); margin-top:6px; line-height:1.45; }
+.chips{ display:flex; flex-wrap:wrap; gap:8px; }
+.chip{
+  cursor:pointer; user-select:none; border:2px solid var(--edge); padding:8px 14px;
+  font-family:var(--disp); font-size:20px; letter-spacing:.5px; color:var(--dim); background:#0f2740;
+}
+.chip.on{ border-color:var(--gold); color:var(--gold); background:#1d4064; }
+.go{
+  width:100%; margin-top:26px; cursor:pointer; border:var(--u) solid #05101a;
+  background:var(--gold); color:#0d1f2d; font-family:var(--pixel); font-size:20px;
+  padding:20px; box-shadow:0 8px 0 rgba(0,0,0,.45);
+}
+.go:active{ transform:translateY(4px); box-shadow:0 4px 0 rgba(0,0,0,.45); }
+.go:disabled{ opacity:.4; cursor:default; }
+.foot{ margin-top:18px; font-size:12px; color:var(--dim); line-height:1.7; }
+.foot a{ color:var(--gold); }
+.warnline{ color:#ff9a92; font-size:13px; margin-top:10px; }
+
+/* result */
+.stat{ display:flex; flex-wrap:wrap; gap:10px; margin:22px 0; }
+.stat div{ flex:1; min-width:120px; background:#0f2740; border:2px solid var(--edge); padding:14px 16px; }
+.stat .k{ font-family:var(--pixel); font-size:10px; color:var(--dim); }
+.stat .v{ font-family:var(--disp); font-size:42px; line-height:1; letter-spacing:1px; color:var(--gold); }
+.rowbtns{ display:flex; gap:10px; flex-wrap:wrap; }
+.rowbtns button{ flex:1; min-width:150px; }
+.ghost{
+  cursor:pointer; border:2px solid var(--edge); background:transparent; color:var(--ink);
+  font-family:var(--disp); font-size:22px; letter-spacing:.5px; padding:16px;
+}
+.ghost:hover{ border-color:var(--gold); }
+
+/* in-play furniture */
+#hud{
+  position:fixed; top:0; left:0; right:0; z-index:20; display:flex; justify-content:space-between;
+  align-items:center; padding:10px 14px; gap:10px; pointer-events:none;
+}
+#hud button{
+  pointer-events:auto; cursor:pointer; border:2px solid var(--edge); background:rgba(7,20,32,.85);
+  color:var(--dim); font-family:var(--pixel); font-size:10px; padding:8px 11px;
+}
+#hud button:hover{ border-color:var(--gold); color:var(--gold); }
+#tip{
+  position:fixed; left:0; right:0; bottom:0; z-index:19; text-align:center; padding:10px;
+  font-family:var(--pixel); font-size:11px; color:var(--dim); pointer-events:none;
+}
+body.play.roundover #tip{ color:var(--gold); }
+#srcline{
+  position:fixed; left:0; right:0; bottom:34px; z-index:19; text-align:center; padding:6px 14px;
+  font-size:12px; color:var(--dim); pointer-events:none; display:none;
+}
+#srcline.on{ display:block; }
+#srcline b{ color:var(--gold); }
+</style>
+</head>
+<body class="play lay-full clean">
+
+<div id="stage">
+  <div id="plate">
+    <div class="kick" id="plateKick">JOMBOY MEDIA</div>
+    <div class="name" id="plateName">GOING THE<br>DISTANCE</div>
+    <div class="sub" id="plateSub"></div>
+  </div>
+  <div id="banner"></div>
+  <div id="qcard">
+    <div id="qhead">
+      <span class="tier" id="qtier">1ST DOWN TRIVIA</span>
+      <span class="drive" id="qdrive"></span>
+    </div>
+    <div id="clockbar"></div>
+    <div id="qtext"></div>
+    <div id="choices"></div>
+  </div>
+  <div id="fieldwrap">
+    <div id="chyron"></div>
+    <canvas id="field"></canvas>
+    <div id="playcall"><div class="label"></div><div class="yards"></div></div>
+  </div>
+</div>
+
+<div id="hud">
+  <button id="quitBtn">◀ QUIT</button>
+  <button id="muteBtn">♪ SOUND ON</button>
+</div>
+<div id="srcline"></div>
+<div id="tip"></div>
+<div id="diag"></div>
+
+<!-- ============================ SETUP ============================ -->
+<div class="screen on" id="setup">
+  <div class="sheet">
+    <div class="kick">JOMBOY MEDIA</div>
+    <div class="big">GOING THE <span>DISTANCE</span></div>
+    <p class="sub">Start on your own 1 and answer your way to the end zone. <b>How fast you
+      answer is the play</b> — fire back instantly and you take the top off it, sit on it and you
+      scramble for two. Miss it and you're eating a sack.</p>
+
+    <h3>PICK YOUR GAME</h3>
+    <div class="opts" id="modeOpts"></div>
+
+    <h3>HOW HARD</h3>
+    <div class="chips" id="diffChips"></div>
+
+    <h3>WHICH ERAS</h3>
+    <div class="chips" id="eraChips"></div>
+
+    <button class="go" id="startBtn">KICK OFF</button>
+    <div class="warnline" id="setupWarn"></div>
+    <div class="foot">
+      <span id="poolLine"></span><br>
+      Every question comes with its source — you'll see it under the answer.
+      <a href="editor.html">Write your own →</a>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ RESULT ============================ -->
+<div class="screen" id="result">
+  <div class="sheet">
+    <div class="kick" id="resKick">FINAL</div>
+    <div class="big" id="resTitle">GOOD DRIVE</div>
+    <p class="sub" id="resLine"></p>
+    <div class="stat" id="resStats"></div>
+    <div class="rowbtns">
+      <button class="go" id="againBtn" style="margin-top:0">RUN IT BACK</button>
+      <button class="ghost" id="changeBtn">CHANGE THE GAME</button>
+    </div>
+    <div class="foot" id="resFoot"></div>
+  </div>
+</div>
+
+<script src="gtd.js"></script>
+<script src="gtdgame.js"></script>
+<script src="gtdview.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const qs = new URLSearchParams(location.search);
+
+/* ---------------------------------------------------------------
+   Same rules, same renderer as the broadcast pair. All this page adds
+   is somewhere to press and somewhere to finish.
+   --------------------------------------------------------------- */
+/* The broadcast layouts anchor to the bottom of the frame because they sit
+   over a shot. Nothing is behind this one, so it centres instead. */
+const view = GTDView.mount({
+  layout:qs.get('layout') || (window.innerHeight > window.innerWidth ? 'vert' : 'full'),
+  dev:true, bodyClass:'play',
+  px:qs.get('px'), s:qs.get('s'),
+  sound:true
+});
+
+let muted = false, beat = null, roundLive = false;
+const G = GTDGame.create({
+  onChange:paint,
+  onCue:c => { if(!muted) GTD.playCue(c); },
+  onLog:() => {}
+});
+const S = G.S;
+
+function paint(){
+  view.apply(G.snapshot({ layout:view.layout(), card:'l', showQ:true, showClock:true }));
+  const q = S.q;
+  document.body.classList.toggle('live', !!(q && !q.reveal));
+  document.body.classList.toggle('locked', !!(q && q.reveal));
+  const src = q && q.cite;
+  $('srcline').className = (q && q.reveal && src) ? 'on' : '';
+  if(q && q.reveal && src) $('srcline').innerHTML = 'source: <b>' + esc(src.label) + '</b>';
+}
+function esc(s){ return String(s).replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c])); }
+
+/* =====================================================================
+   SETUP
+   ===================================================================== */
+const MODES = [
+  ['drive',  'THE DRIVE',        'Own 1 to the end zone. Four downs to make ten, and how fast you answer is the play.'],
+  ['2min',   'TWO-MINUTE DRILL', 'One clock for the whole round. Rapid fire — a wrong answer costs you ten seconds.'],
+  ['sudden', 'SUDDEN DEATH',     'One wrong answer ends it. How far can you get?'],
+  ['wager',  'THE WAGER',        'Call your yardage before each question. Miss it and you lose it.'],
+  ['h2h',    'HEAD TO HEAD',     'Two of you, one device. Start at the 50, five yards a question, turnover if you miss.']
+];
+let pick = { mode:'drive', diff:'ladder', eras:GTD.ERAS.map(e => e[0]) };
+try{
+  const saved = JSON.parse(localStorage.getItem('gtd_play') || 'null');
+  if(saved && saved.eras && saved.eras.length) pick = Object.assign(pick, saved);
+}catch(e){}
+
+function paintSetup(){
+  const mo = $('modeOpts'); mo.innerHTML = '';
+  MODES.forEach(([k, t, d]) => {
+    const b = document.createElement('button');
+    b.className = 'opt' + (pick.mode === k ? ' on' : '');
+    b.innerHTML = '<div class="t">' + t + '</div><div class="d">' + d + '</div>';
+    b.onclick = () => { pick.mode = k; paintSetup(); };
+    mo.appendChild(b);
+  });
+  const dc = $('diffChips'); dc.innerHTML = '';
+  [['ladder', 'LADDER'], ['1', 'EASY'], ['2', 'MEDIUM'], ['3', 'HARD']].forEach(([k, t]) => {
+    const b = document.createElement('div');
+    b.className = 'chip' + (String(pick.diff) === k ? ' on' : '');
+    b.textContent = t;
+    b.title = k === 'ladder' ? 'the field position picks it — it gets harder the closer you get' : '';
+    b.onclick = () => { pick.diff = k; paintSetup(); };
+    dc.appendChild(b);
+  });
+  const ec = $('eraChips'); ec.innerHTML = '';
+  GTD.ERAS.forEach(([k, label]) => {
+    const b = document.createElement('div');
+    b.className = 'chip' + (pick.eras.includes(k) ? ' on' : '');
+    b.textContent = label.toUpperCase();
+    b.onclick = () => {
+      const i = pick.eras.indexOf(k);
+      if(i > -1) pick.eras.splice(i, 1); else pick.eras.push(k);
+      if(!pick.eras.length) pick.eras.push(k);   /* never leave it with nothing to serve */
+      paintSetup();
+    };
+    ec.appendChild(b);
+  });
+
+  const n = GTD.count({ diff:pick.diff === 'ladder' ? 0 : +pick.diff, eras:pick.eras }, {});
+  $('poolLine').textContent = n + ' questions match — ' + GTD.POOL().length + ' in the bank';
+  $('setupWarn').textContent = n < 6
+    ? "That's a thin bank. It'll widen the difficulty rather than run out, but you'll see repeats."
+    : '';
+  try{ localStorage.setItem('gtd_play', JSON.stringify(pick)); }catch(e){}
+}
+
+/* the editor's questions play here too */
+(function loadCustom(){
+  let custom = [];
+  const mode = localStorage.getItem('gtd_bankmode') || 'both';
+  try{ custom = JSON.parse(localStorage.getItem('gtd_custom') || '[]') || []; }catch(e){}
+  const ok = custom.filter(r => r && r.text && r.right && (r.wrong || []).filter(Boolean).length >= 3);
+  GTD.rebuildPool(mode === 'builtin' ? [] : ok, { customOnly:mode === 'mine' });
+})();
+paintSetup();
+
+/* =====================================================================
+   THE ROUND
+   ===================================================================== */
+function show(id){ ['setup', 'result'].forEach(s => $(s).classList.toggle('on', s === id)); }
+
+function start(){
+  GTD.audioCtx();                       /* the tap that unlocks WebAudio */
+  clearTimeout(beat);
+  G.setFilters({ diff:pick.diff, eras:pick.eras });
+  S.used = {}; S.qnum = 0; S.drive.score = 0;
+  S.h2h.teams[0].score = 0; S.h2h.teams[1].score = 0; S.h2h.ball = 50; S.h2h.poss = 0;
+  S.sd.streak = 0; S.sd.alive = true;
+  G.setMode(pick.mode);
+  if(pick.mode === '2min'){ G.tmdReset(120); G.tmdStart(); }
+  S.clockDur = pick.mode === '2min' ? 10 : 20;
+  roundLive = true;
+  show(null);
+  tip(pick.mode === 'wager' ? 'call your yardage, then answer' : 'tap your answer');
+  next();
+}
+
+function next(){
+  if(!roundLive) return;
+  if(pick.mode === 'wager') return askWager();
+  G.serve();
+  armTimeout();
+}
+
+/* If nobody answers, the clock expiring has to actually do something —
+   otherwise a self-serve round just sits there forever. */
+let timeoutTimer = null;
+function armTimeout(){
+  clearTimeout(timeoutTimer);
+  if(!S.q) return;
+  timeoutTimer = setTimeout(() => {
+    if(S.q && !S.q.reveal && roundLive){ G.timeExpired(); afterPlay(); }
+  }, S.clockDur * 1000 + 250);
+}
+
+function pickAnswer(i){
+  if(!S.q || S.q.reveal || !roundLive) return;
+  if(S.q.gone.includes(i)) return;
+  clearTimeout(timeoutTimer);
+  G.lock(i);
+  tip('');
+  /* the beat between locking in and finding out is the whole show */
+  beat = setTimeout(() => { G.reveal(); afterPlay(); }, 900);
+}
+$('choices').addEventListener('click', ev => {
+  const el = ev.target.closest('.ch');
+  if(!el) return;
+  pickAnswer(Array.prototype.indexOf.call($('choices').children, el));
+});
+
+const ENDS = {
+  drive:['td', 'fg', 'downs', 'safety'],
+  wager:['td'],
+  sudden:['over'],
+  '2min':['time'],
+  h2h:['h2hscore']
+};
+function afterPlay(){
+  const done = (ENDS[pick.mode] || []).includes(S.outcome);
+  const wait = 2600 + (S.play ? Math.min(2400, 420 + Math.abs((S.play.to || 0) - S.play.from) * 34) : 0);
+  if(done){
+    roundLive = false;
+    document.body.classList.add('roundover');
+    tip('');
+    beat = setTimeout(finish, wait);
+  } else {
+    tip('next one coming up…');
+    beat = setTimeout(() => { tip(pick.mode === 'wager' ? 'call your yardage' : 'tap your answer'); next(); }, wait);
+  }
+}
+
+/* ---- the wager needs a decision before the question ---- */
+function askWager(){
+  const host = $('choices');
+  $('qcard').classList.add('on');
+  $('qtext').textContent = 'How many yards do you want?';
+  $('qtier').textContent = 'THE CALL'; $('qtier').className = 'tier t2';
+  $('qdrive').textContent = GTD.spot(S.drive.los);
+  $('clockbar').className = 'hide';
+  host.innerHTML = '';
+  const room = 100 - S.drive.los;
+  [5, 10, 15, 20, 25, 30, 40].filter(n => n <= Math.max(5, room)).forEach(n => {
+    const d = document.createElement('div');
+    d.className = 'ch';
+    d.innerHTML = '<span class="key">' + n + '</span><span class="txt">YARDS</span>';
+    d.onclick = () => { S.wg.wager = n; G.serve(); armTimeout(); };
+    host.appendChild(d);
+  });
+  document.body.classList.add('live');
+  document.body.classList.remove('locked');
+}
+
+function tip(t){ $('tip').textContent = t || ''; }
+
+/* =====================================================================
+   RESULT
+   ===================================================================== */
+function finish(){
+  document.body.classList.remove('roundover');
+  const D = S.drive, o = S.outcome;
+  let title = 'DRIVE OVER', kick = 'FINAL', line = '';
+  const stats = [];
+
+  if(pick.mode === 'h2h'){
+    const T = S.h2h.teams, win = T[0].score >= T[1].score ? T[0] : T[1];
+    title = win.name + ' TAKES IT';
+    line = T[0].name + ' ' + T[0].score + ' — ' + T[1].name + ' ' + T[1].score;
+    stats.push(['POINTS', T[0].score + '–' + T[1].score], ['QUESTIONS', S.qnum]);
+  } else if(pick.mode === 'sudden'){
+    title = S.sd.streak >= 10 ? 'WHAT A RUN' : S.sd.streak >= 5 ? 'GOOD RUN' : 'THAT IS THE BALLGAME';
+    kick = 'THE RUN IS OVER';
+    line = 'You strung together ' + S.sd.streak + ' before it caught up with you.';
+    stats.push(['IN A ROW', S.sd.streak], ['POINTS', D.score], ['BEST TODAY', Math.max(S.sd.best, S.sd.streak)]);
+  } else if(pick.mode === '2min'){
+    title = D.score >= 14 ? 'CLINICAL' : D.score >= 7 ? 'GOT THERE' : 'RAN OUT OF CLOCK';
+    kick = 'TIME';
+    line = D.score + ' points in two minutes, off ' + S.tmd.plays + ' plays.';
+    stats.push(['POINTS', D.score], ['PLAYS', S.tmd.plays], ['BALL ON', GTD.spot(D.los)]);
+  } else {
+    const scored = o === 'td' || o === 'fg';
+    title = o === 'td' ? 'TOUCHDOWN' : o === 'fg' ? 'FIELD GOAL' : o === 'safety' ? 'SAFETY' : 'TURNOVER ON DOWNS';
+    kick = scored ? 'YOU WENT THE DISTANCE' : 'DRIVE OVER';
+    line = scored
+      ? 'Ninety-nine yards, ' + S.qnum + ' questions.'
+      : 'You got to ' + GTD.spot(D.los) + ' before it stalled.';
+    stats.push(['POINTS', D.score], ['QUESTIONS', S.qnum], ['GOT TO', GTD.spot(D.los)]);
+  }
+
+  $('resKick').textContent = kick;
+  $('resTitle').textContent = title;
+  $('resLine').textContent = line;
+  const host = $('resStats'); host.innerHTML = '';
+  stats.forEach(([k, v]) => {
+    const d = document.createElement('div');
+    d.innerHTML = '<div class="k">' + k + '</div><div class="v">' + v + '</div>';
+    host.appendChild(d);
+  });
+  const label = (MODES.find(m => m[0] === pick.mode) || [])[1] || '';
+  const eras = pick.eras.length === GTD.ERAS.length ? 'every era'
+    : pick.eras.map(e => (GTD.ERAS.find(x => x[0] === e) || [])[1]).join(', ');
+  $('resFoot').textContent = label + ' · ' +
+    ({ ladder:'ladder', 1:'easy', 2:'medium', 3:'hard' }[pick.diff] || pick.diff) + ' · ' + eras;
+  show('result');
+}
+
+$('startBtn').onclick = start;
+$('againBtn').onclick = start;
+$('changeBtn').onclick = () => { roundLive = false; clearTimeout(beat); paintSetup(); show('setup'); };
+$('quitBtn').onclick = () => {
+  roundLive = false; clearTimeout(beat); clearTimeout(timeoutTimer);
+  document.body.classList.remove('roundover');
+  paintSetup(); show('setup');
+};
+$('muteBtn').onclick = () => {
+  muted = !muted; GTD.mute(muted);
+  $('muteBtn').textContent = muted ? '♪ SOUND OFF' : '♪ SOUND ON';
+};
+addEventListener('keydown', ev => {
+  if($('setup').classList.contains('on') || $('result').classList.contains('on')) return;
+  const k = ev.key.toLowerCase();
+  if('abcd'.includes(k)){ ev.preventDefault(); pickAnswer('abcd'.indexOf(k)); }
+  if('1234'.includes(k)){ ev.preventDefault(); pickAnswer(+k - 1); }
+});
+
+paint();
+</script>
+</body>
+</html>

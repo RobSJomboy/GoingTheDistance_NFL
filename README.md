@@ -10,12 +10,31 @@ two. Miss it and you're eating a sack.
 
 ```
 index.html     the door
+play.html      just play it — no host, works on a phone
 control.html   the host panel — keep this off camera
 display.html   the 8-bit field — this is the OBS browser source
 editor.html    write your own questions
-gtd.js         question bank, play engine, pixel art, audio
-gtd.css        overlay styling for all three layouts
+
+gtd.js         question bank, engine primitives, pixel art, audio
+gtdgame.js     the rules — every mode, shared by play and control
+gtdview.js     the renderer — the field and the card, shared by play and display
+gtd.css        styling for all three layouts
 ```
+
+## Two ways to run it
+
+**On your own** — open `play.html` and go. Pick a game, a difficulty and which eras you want,
+tap your answers. Everything happens in the browser; nothing to connect, nothing to install, and
+it plays properly on a phone (portrait gets the vertical field). Send anyone the link.
+
+**As a show** — a host drives `control.html` and the field goes out to an OBS browser source over
+ntfy, exactly as before.
+
+Both run **the same rules off the same code**. `gtdgame.js` holds every game rule and touches no
+DOM; `gtdview.js` holds the renderer. `play.html` wires them straight together, `control.html`
+wires the rules to a publisher and `display.html` wires a subscriber to the renderer. That's the
+whole reason for the split: if the rules lived in both pages they would drift, and a fix to the
+drive would quietly not apply to the version people actually play.
 
 ---
 
