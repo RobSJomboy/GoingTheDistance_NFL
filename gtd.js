@@ -286,7 +286,7 @@ const BANK = [
 "Who did the Raiders beat in Super Bowl XI?|Vikings|Eagles|Cowboys|Washington|2|70s|sbchamps",
 "Who did the Steelers beat in Super Bowl XIII?|Cowboys|Washington|Broncos|Dolphins|2|70s|sbchamps",
 "Who did the Raiders beat in Super Bowl XV?|Eagles|Dolphins|Vikings|Cowboys|2|80s|sbchamps",
-"Who did the Washington beat in Super Bowl XVII?|Dolphins|Broncos|Vikings|Bengals|2|80s|sbchamps",
+"Who did Washington beat in Super Bowl XVII?|Dolphins|Broncos|Vikings|Bengals|2|80s|sbchamps",
 "Who did the 49ers beat in Super Bowl XIX?|Dolphins|Broncos|Bills|Bengals|2|80s|sbchamps",
 "Who did the Giants beat in Super Bowl XXI?|Broncos|Bengals|Washington|Eagles|2|80s|sbchamps",
 "Who did the 49ers beat in Super Bowl XXIII?|Bengals|Broncos|Eagles|Patriots|2|80s|sbchamps",
@@ -501,30 +501,58 @@ const ERAS = [
 const DIFFS = [[1, 'Easy'], [2, 'Medium'], [3, 'Hard']];
 
 /* ---------------------------------------------------------------
-   What shape a question is, so the same shape doesn't come round twice in
-   a row. A quarter of the bank is MVP questions, so a straight random draw
-   puts two of them together often, and on air that reads as the game being
-   out of ideas.
+   HOW ALIKE ARE TWO QUESTIONS
 
-   `misc` is the catch-all and is deliberately never avoided — two unrelated
-   questions in a row is just a quiz. Only the shapes that come in bulk are
-   worth spacing out.
+   Three separate ways a pair can feel like the same question twice, and
+   they are not equally bad on air:
+
+     answer   — two in a row that both come back "Tom Brady" reads as a
+                mistake. The worst of the three.
+     subject  — two in a row about Super Bowl XXIII, or about the 1985
+                season. Reads as the game getting stuck.
+     shape    — two "who won Super Bowl X" in a row. Repetitive, but the
+                mildest, so it is the first one given up when the bank is
+                thin.
+
+   The shapes are deliberately narrow. `misc` used to be a third of the
+   bank and exempt from all this, which meant six "who holds the record"
+   questions could still come out back to back — the exact thing the rule
+   was for.
    --------------------------------------------------------------- */
 function kindOf(text){
   const t = String(text);
   if(/\bMVPs?\b/i.test(t)) return 'mvp';
   if(/won Super Bowl/i.test(t)) return 'sbwin';
   if(/beat in Super Bowl/i.test(t)) return 'sbbeat';
-  if(/first overall/i.test(t) || /took .+ first\b/i.test(t)) return 'draft';
+  if(/first overall/i.test(t) || /\bdrafted\b/i.test(t) || /first round/i.test(t)) return 'draft';
+  if(/\b(holds|the most|all-time|record|leader|leading)\b/i.test(t)) return 'record';
+  if(/^(how many|how long|what is|what do you call|a (field goal|safety)|which position|what colour|what color)/i.test(t)) return 'rules';
+  if(/\b(nicknamed|nickname|known as|belongs to|fans of|fan base|called the)\b/i.test(t)) return 'nickname';
+  if(/\b(plays (its|at)|home games|stadium|helmet|city|conference|hosts)\b/i.test(t)) return 'club';
+  if(/\b(caught|threw|catch|reception|run|return|comeback|miracle|lead in a)\b/i.test(t)) return 'play';
   return 'misc';
 }
+
+/* The specific thing a question is about, so two questions on the same game
+   or the same season don't land together. */
+function subjectOf(text){
+  const t = String(text);
+  const sb = t.match(/\bSuper Bowl ([IVXLCDM]+|\d+)\b/);
+  if(sb) return 'sb:' + sb[1];
+  const yr = t.match(/\b(19|20)\d{2}\b/);
+  if(yr) return 'yr:' + yr[0];
+  return null;
+}
+
+function sameAs(a){ return String(a || '').trim().toLowerCase(); }
 
 function parseRow(row, i){
   const p = String(row).split('|').map(x => x.trim());
   if(p.length < 5 || !p[0] || !p[1]) return null;
   return {
     id:'b' + i, text:p[0], right:p[1], wrong:p.slice(2, 5).filter(Boolean),
-    diff:+p[5] || 2, era:p[6] || 'any', src:p[7] || null, kind:kindOf(p[0])
+    diff:+p[5] || 2, era:p[6] || 'any', src:p[7] || null,
+    kind:kindOf(p[0]), subject:subjectOf(p[0]), answer:sameAs(p[1])
   };
 }
 /* [label, url] for a question, or null if it came in without one */
@@ -543,7 +571,8 @@ function rebuildPool(extra, opts){
     if(!q || !q.text || !q.right) return;
     POOL.push({
       id:'x' + i, text:q.text, right:q.right, wrong:(q.wrong || []).filter(Boolean),
-      diff:+q.diff || 2, era:q.era || 'any', src:q.src || null, custom:true, kind:kindOf(q.text)
+      diff:+q.diff || 2, era:q.era || 'any', src:q.src || null, custom:true,
+      kind:kindOf(q.text), subject:subjectOf(q.text), answer:sameAs(q.right)
     });
   });
   return POOL.length;
@@ -617,7 +646,8 @@ function makeQ(list){
   const q = list[Math.floor(Math.random() * list.length)];
   const choices = shuffle([q.right].concat(q.wrong).slice(0, 4));
   return {
-    id:q.id, diff:q.diff, era:q.era, kind:q.kind, text:sbNumbers(q.text),
+    id:q.id, diff:q.diff, era:q.era, kind:q.kind, subject:q.subject, answer:q.answer,
+    text:sbNumbers(q.text),
     choices:choices.map(sbNumbers), correct:choices.indexOf(q.right), cite:cite(q)
   };
 }
@@ -628,19 +658,22 @@ function makeQ(list){
    Nothing here may return null mid-show. */
 /* Serve a question.
 
-   Four things are in tension and they are not equally bad, so the order
+   Five things are in tension and they are not equally bad, so the order
    they get given up in matters:
 
-     1. the era        — the host's deliberate creative choice, given up last
-     2. never repeat   — a question already asked is the worst thing to serve
-     3. the shape gap  — two MVP questions in a row reads as running out of
-                         ideas, but it beats repeating one
-     4. the difficulty — the cheapest thing to bend, given up first
+     1. the era          the host's deliberate creative choice — given up last
+     2. never repeat     a question already asked is the worst thing to serve
+     3. same answer      two in a row that both answer "Tom Brady" reads as a
+                         mistake
+     4. same subject     two in a row about the same game or the same season
+     5. same shape       repetitive, but the mildest — given up first
+     6. the difficulty   the cheapest thing to bend, bent before any of the above
 
-   So: walk the difficulties looking for something fresh that isn't the
-   shape just served; then allow that shape; and only once nothing fresh is
-   left anywhere in the era do repeats come into it, in the same order.
-   Nothing here may return null mid-show.
+   So: walk the difficulties looking for something fresh that is unlike the
+   last question in all three ways; then allow the shape to repeat; then the
+   subject; then the answer; and only once nothing fresh is left anywhere in
+   the era do repeats come into it, in the same order. Nothing here may
+   return null mid-show.
    --------------------------------------------------------------- */
 function draw(opts, used){
   const o = opts || {}, seen = used || {};
@@ -648,29 +681,34 @@ function draw(opts, used){
   const d = +o.diff || 0;
   const order = d ? [d].concat([1, 2, 3].filter(x => x !== d).sort((a, b) => Math.abs(a - d) - Math.abs(b - d)))
                   : [2, 1, 3];
-  /* `misc` is the catch-all, never a cluster, so it is never avoided */
-  const avoid = o.avoidKind && o.avoidKind !== 'misc' ? o.avoidKind : null;
 
-  const tiers = [];
-  order.forEach(dd => tiers.push({ fresh:true, diff:dd }));
-  tiers.push({ fresh:true, diff:0 });
-  order.forEach(dd => tiers.push({ fresh:false, diff:dd }));
-  tiers.push({ fresh:false, diff:0 });
+  const last = o.avoid || null;
+  /* `misc` is genuinely miscellaneous — two of those in a row is just a
+     quiz, so it is the one shape never worth avoiding */
+  const avoidKind = last && last.kind && last.kind !== 'misc' ? last.kind : null;
+  const avoidSubject = last && last.subject ? last.subject : null;
+  const avoidAnswer = last && last.answer ? last.answer : null;
 
-  const take = (t, gap) => POOL.filter(q =>
-    matches(q, eras) &&
-    (!t.diff || q.diff === t.diff) &&
-    (!t.fresh || !seen[q.id]) &&
-    (!gap || q.kind !== gap));
+  const tiers = order.map(dd => dd).concat([0]);
+  const gaps = [
+    { k:avoidKind, s:avoidSubject, a:avoidAnswer },
+    { k:null,      s:avoidSubject, a:avoidAnswer },
+    { k:null,      s:null,         a:avoidAnswer },
+    { k:null,      s:null,         a:null }
+  ];
 
-  /* every fresh tier with the gap, then every fresh tier without it, then
-     the same twice over for repeats */
-  for(const phase of [{ fresh:true, gap:avoid }, { fresh:true, gap:null },
-                      { fresh:false, gap:avoid }, { fresh:false, gap:null }]){
-    for(const t of tiers){
-      if(t.fresh !== phase.fresh) continue;
-      const list = take(t, phase.gap);
-      if(list.length) return makeQ(list);
+  for(const fresh of [true, false]){
+    for(const g of gaps){
+      for(const dd of tiers){
+        const list = POOL.filter(q =>
+          matches(q, eras) &&
+          (!dd || q.diff === dd) &&
+          (!fresh || !seen[q.id]) &&
+          (!g.k || q.kind !== g.k) &&
+          (!g.s || q.subject !== g.s) &&
+          (!g.a || q.answer !== g.a));
+        if(list.length) return makeQ(list);
+      }
     }
   }
   return POOL.length ? makeQ(POOL) : null;
@@ -1326,7 +1364,7 @@ function fgDistance(los){ return Math.round(100 - los + 17); }
 
 return {
   RELAYS, BANK, SOURCES, ERAS, DIFFS, cite, count, POOL:() => POOL,
-  rebuildPool, parseImport, draw, tierFor, shuffle, sbNumbers, kindOf,
+  rebuildPool, parseImport, draw, tierFor, shuffle, sbNumbers, kindOf, subjectOf,
   resolve, FORCED, BANDS, MISS,
   drawField, SPR, PAL, teamPal, GEO, geo, xy, drawNum,
   CUES, playCue, initSound, dropFiles, clearClip, listClips, cueFromName,

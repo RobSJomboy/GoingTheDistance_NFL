@@ -140,23 +140,31 @@ filter unplayable at the easy setting. Every era × difficulty pair has at least
 it, and the control page prints a live count of what the current filter can still serve — a filter
 that has quietly run dry is something to find out about before you're on camera.
 
-**The same shape never comes round twice in a row.** A third of the bank is MVP questions — the
-generated ones come off the MVP tables — so a straight random draw puts two together constantly,
-and on air that reads as the game running out of ideas. Every question is tagged with its shape
-(*MVP*, *who won the Super Bowl*, *who they beat*, *first overall pick*) and the next one is
-served from a different one. Miscellaneous questions are exempt, because two unrelated questions
-in a row is just a quiz.
+**No two questions in a row that are alike.** There are three separate ways a pair can feel like
+the same question twice, and they aren't equally bad:
 
-When the bank runs thin, four things are in tension and they get given up in this order:
+- **the same answer** — two in a row that both come back *Tom Brady*. Reads as a mistake, and it's
+  the worst of the three.
+- **the same subject** — two in a row about Super Bowl XXIII, or about the 1985 season.
+- **the same shape** — two *who won Super Bowl X* in a row. Repetitive, but the mildest.
+
+Every question carries all three, and the next one has to differ on all of them. Shapes are
+deliberately narrow — *MVP*, *who won it*, *who they beat*, *draft pick*, *record*, *rules*,
+*nickname*, *club*, *famous play* — because a broad catch-all is how six "who holds the record"
+questions still end up back to back. Only genuine leftovers are exempt from the shape rule; two
+unrelated questions in a row is just a quiz.
+
+When the bank runs thin, everything is in tension and gets given up in this order:
 
 1. **the era** — your deliberate creative choice, given up last
 2. **never repeat a question** — the worst thing to serve twice
-3. **the shape gap** — two MVPs in a row beats repeating a question
-4. **the difficulty** — the cheapest thing to bend, given up first
+3. **the same answer**
+4. **the same subject**
+5. **the same shape** — given up first of the three
+6. **the difficulty** — the cheapest thing of all, bent before any of them
 
-So it widens the difficulty first, then allows the repeated shape, and only once nothing fresh is
-left anywhere in the era does it start repeating questions. It never comes up empty mid-show —
-tested across every era × difficulty pair, 40 draws each.
+Tested across every era × difficulty pair, 35 draws each, and a 120-question sweep: zero repeats
+of any of the three, and it never came up empty.
 
 ## The games
 
