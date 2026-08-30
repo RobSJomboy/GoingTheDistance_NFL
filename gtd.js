@@ -547,6 +547,34 @@ function parseImport(text){
   return { rows:out, bad:bad };
 }
 
+/* ---------------------------------------------------------------
+   Roman numerals are a needless barrier on a game show: nobody should be
+   working out what XXXVIII is while a clock runs. Every Super Bowl numeral
+   gets the plain number after it wherever a question is served, so custom
+   questions written in the editor get it too without anyone remembering.
+
+   Super Bowl 50 was branded with the digits, not an L, and comes through
+   untouched. "Super Bowl MVP" is left alone because P is not a numeral, so
+   the whole-word match fails rather than turning MV into 1005.
+   --------------------------------------------------------------- */
+const ROMAN = { I:1, V:5, X:10, L:50, C:100, D:500, M:1000 };
+function romanToInt(r){
+  let n = 0;
+  for(let i = 0; i < r.length; i++){
+    const v = ROMAN[r[i]], next = ROMAN[r[i + 1]];
+    n += (next && next > v) ? -v : v;
+  }
+  return n;
+}
+function sbNumbers(text){
+  return String(text).replace(/\bSuper Bowl ([IVXLCDM]+)\b(\s*\()?/g, (all, num, paren) => {
+    if(paren) return all;                      /* already spelled out */
+    const n = romanToInt(num);
+    if(!n || n > 200) return all;              /* not a Super Bowl number */
+    return 'Super Bowl ' + num + ' (' + n + ')';
+  });
+}
+
 function shuffle(a){
   const r = a.slice();
   for(let i = r.length - 1; i > 0; i--){
@@ -570,8 +598,8 @@ function makeQ(list){
   const q = list[Math.floor(Math.random() * list.length)];
   const choices = shuffle([q.right].concat(q.wrong).slice(0, 4));
   return {
-    id:q.id, diff:q.diff, era:q.era, text:q.text,
-    choices:choices, correct:choices.indexOf(q.right), cite:cite(q)
+    id:q.id, diff:q.diff, era:q.era, text:sbNumbers(q.text),
+    choices:choices.map(sbNumbers), correct:choices.indexOf(q.right), cite:cite(q)
   };
 }
 
@@ -1246,7 +1274,7 @@ function fgDistance(los){ return Math.round(100 - los + 17); }
 
 return {
   RELAYS, BANK, SOURCES, ERAS, DIFFS, cite, count, POOL:() => POOL,
-  rebuildPool, parseImport, draw, tierFor, shuffle,
+  rebuildPool, parseImport, draw, tierFor, shuffle, sbNumbers,
   resolve, FORCED, BANDS, MISS,
   drawField, SPR, PAL, teamPal, GEO, geo, xy, drawNum,
   CUES, playCue, initSound, dropFiles, clearClip, listClips, cueFromName,
