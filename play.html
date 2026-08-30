@@ -218,9 +218,17 @@ body.play.hidechrome #unclean:hover{ border-color:var(--gold); color:var(--gold)
       </div>
       <p class="foot" id="topicState">not publishing · nothing leaves this browser</p>
       <div id="obsUrlBox" style="display:none; margin-top:14px">
-        <div class="foot" style="margin:0 0 6px">Paste this into the OBS browser source:</div>
+        <div class="foot" style="margin:0 0 6px" id="obsUrlLabel">Paste this into the OBS browser source:</div>
         <div id="obsUrl" style="font-family:'DM Mono',monospace; font-size:13px; color:#fbcc7a;
              background:#0d2032; border:2px solid var(--edge); padding:12px; word-break:break-all;"></div>
+        <div id="obsPair" style="display:none; margin-top:12px">
+          <div class="foot" style="margin:0 0 6px"><b>Better in OBS:</b> two sources, one per cut —
+            each at its own full resolution instead of both squeezed into one.</div>
+          <div id="obsUrlH" style="font-family:'DM Mono',monospace; font-size:12px; color:#cfe0ef;
+               background:#0d2032; border:2px solid var(--edge); padding:10px; word-break:break-all; margin-bottom:6px;"></div>
+          <div id="obsUrlV" style="font-family:'DM Mono',monospace; font-size:12px; color:#cfe0ef;
+               background:#0d2032; border:2px solid var(--edge); padding:10px; word-break:break-all;"></div>
+        </div>
         <div class="rowbtns" style="margin-top:10px">
           <button class="ghost" id="copyObs">COPY THE OBS URL</button>
           <button class="ghost" id="checkObs">CHECK IT LANDED</button>
@@ -544,17 +552,23 @@ function finish(){
 }
 
 /* ---- the record panel ---- */
+function base(){ return location.href.split('#')[0].replace(/play\.html.*$/, ''); }
 function mirrorURL(){
-  return location.href.split('#')[0].replace(/play\.html.*$/, '') + 'display.html?layout=' + recLayout;
+  return recLayout === 'both'
+    ? base() + 'both.html?h=full'
+    : base() + 'display.html?layout=' + recLayout;
 }
 function obsURL(){
-  return location.href.split('#')[0].replace(/play\.html.*$/, '') +
-    'display.html?topic=' + encodeURIComponent(SYNC.topic()) + '&layout=' + recLayout;
+  const t = encodeURIComponent(SYNC.topic());
+  return recLayout === 'both'
+    ? base() + 'both.html?topic=' + t + '&h=full'
+    : base() + 'display.html?topic=' + t + '&layout=' + recLayout;
 }
-const REC_SIZES = { lower:[1280, 720], full:[1280, 720], vert:[540, 960] };
+const REC_SIZES = { lower:[1280, 720], full:[1280, 720], vert:[540, 960], both:[1500, 900] };
 function paintRec(){
   const host = $('recLayout'); host.innerHTML = '';
-  [['lower', '16:9 LOWER THIRD'], ['full', '16:9 FULL BOARD'], ['vert', '9:16 VERTICAL']].forEach(([k, t]) => {
+  [['full', '16:9 FULL BOARD'], ['lower', '16:9 LOWER THIRD'], ['vert', '9:16 VERTICAL'],
+   ['both', 'BOTH AT ONCE']].forEach(([k, t]) => {
     const b = document.createElement('div');
     b.className = 'chip' + (recLayout === k ? ' on' : '');
     b.textContent = t;
@@ -562,7 +576,7 @@ function paintRec(){
       recLayout = k;
       try{ localStorage.setItem('gtd_reclayout', k); }catch(e){}
       paintRec(); paint();
-      $('obsUrl').textContent = obsURL();
+      paintObsUrls();
       if(mirrorWin && !mirrorWin.closed) mirrorWin.location.replace(mirrorURL());
     };
     host.appendChild(b);
@@ -570,11 +584,17 @@ function paintRec(){
   /* A browser window cannot be transparent, so the two overlay layouts come
      up on white in a window you record. That is fine if you are keying it,
      and wrong if you are not — say so rather than let it surprise anyone. */
-  $('shapeNote').innerHTML = recLayout === 'full'
-    ? 'Self-contained on navy — record this window as it is.'
-    : 'This one is built to sit over a shot, so it comes up on white in a window. '
-      + 'Fine for an OBS browser source, where it really is transparent; for a plain screen '
-      + 'recording you probably want the full board.';
+  $('shapeNote').innerHTML =
+    recLayout === 'both'
+      ? 'The 16:9 and the 9:16 side by side off one game — <b>record the take once and crop it '
+        + 'twice</b>, so a YouTube edit and a Short come out of the same run. Both are at their '
+        + 'true broadcast size and the bar along the bottom prints the exact crop rectangles. '
+        + 'Hide the furniture before you roll.'
+    : recLayout === 'full'
+      ? 'Self-contained on navy — record this window as it is.'
+      : 'This one is built to sit over a shot, so it comes up on white in a window. '
+        + 'Fine for an OBS browser source, where it really is transparent; for a plain screen '
+        + 'recording you probably want the full board.';
 }
 function paintTopicState(){
   const t = SYNC.topic();
@@ -601,7 +621,20 @@ function paintCap(){
   });
   $('capWindow').style.display = capMode === 'window' ? '' : 'none';
   $('capObs').style.display = capMode === 'obs' ? '' : 'none';
+  paintObsUrls();
+}
+function paintObsUrls(){
+  const t = encodeURIComponent(SYNC.topic());
   $('obsUrl').textContent = obsURL();
+  const both = recLayout === 'both';
+  $('obsPair').style.display = both ? '' : 'none';
+  $('obsUrlLabel').innerHTML = both
+    ? 'One source with both cuts in it — crop two copies out of it:'
+    : 'Paste this into the OBS browser source:';
+  if(both){
+    $('obsUrlH').textContent = base() + 'display.html?topic=' + t + '&layout=full';
+    $('obsUrlV').textContent = base() + 'display.html?topic=' + t + '&layout=vert';
+  }
 }
 $('recBtn').onclick = () => openRec('game');
 $('setupRecBtn').onclick = () => openRec('setup');
@@ -634,7 +667,7 @@ $('topicGo').onclick = () => {
   try{ localStorage.setItem('gtd_playtopic', t); }catch(e){}
   paint();
   $('obsUrlBox').style.display = '';
-  $('obsUrl').textContent = obsURL();
+  paintObsUrls();
   paintTopicState();
   setTimeout(checkRelay, 1200);
 };

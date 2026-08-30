@@ -13,6 +13,7 @@ index.html     the door
 play.html      just play it — no host, works on a phone
 control.html   the host panel — keep this off camera
 display.html   the 8-bit field — this is the OBS browser source
+both.html      both cuts at once, off one game
 editor.html    write your own questions
 
 gtd.js         question bank, engine primitives, pixel art, audio
@@ -45,10 +46,30 @@ it in OBS as a window capture. It follows this browser automatically over a Broa
 no topic, nothing to connect. Open it mid-round and it asks for the current state, so it comes up
 where the game is rather than blank.
 
-Three shapes: **16:9 full board** (self-contained on navy — the one to record as-is), **16:9 lower
-third** and **9:16 vertical**. The two overlay layouts are built to sit over a shot, so in a window
+Four shapes: **16:9 full board** (self-contained on navy — the one to record as-is), **16:9 lower
+third**, **9:16 vertical**, and **both at once**. The two overlay layouts are built to sit over a shot, so in a window
 they come up on white — right for an OBS browser source, where the transparency is real, and wrong
 for a plain screen recording.
+
+### Both cuts at once — `both.html`
+
+One page, both cuts, off the same live game: the 16:9 and the 9:16 side by side. **Record the take
+once and crop it twice**, so a YouTube edit and a Short come out of the same run instead of playing
+it through twice.
+
+Both frames are `display.html` at their true broadcast size — 1920×1080 and 1080×1920 — scaled only
+to fit the window, and the bar along the bottom prints **the exact crop rectangles** so you can cut
+each one out of a capture. *Hide the furniture* strips the labels and outlines before you roll, and
+the scale picker goes up to native.
+
+The frames never talk to a relay themselves — a page inside a frame skips its subscription on
+purpose, or this one would open two sets of SSE streams for a single game. With a topic, `both.html`
+does the listening and hands what it hears to both frames over the browser channel; with no topic it
+does nothing, because the play page is already on that channel and the frames hear it directly.
+
+**In OBS, two sources beat one.** A browser source isn't limited by your monitor, so a source per cut
+gives each its full resolution instead of squeezing both into one. The record panel prints both URLs
+alongside the combo one for exactly that reason.
 
 **⛶ HIDE THIS** does the other version of the same idea: strips the buttons off the play page
 itself so you can record that window directly. Escape brings them back.

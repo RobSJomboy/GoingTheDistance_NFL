@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Going the Distance — Both Cuts</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Press+Start+2P&display=swap');
+:root{ --navy:#0d1f2d; --edge:#22415c; --gold:#fbcc7a; --dim:#8fabc4; }
+*{ margin:0; padding:0; box-sizing:border-box; }
+html,body{ width:100%; height:100%; background:var(--navy); }
+body{ overflow:auto; }
+body.fitted{ overflow:hidden; }
+body{ font-family:'DM Mono',monospace; color:var(--dim); }
+
+#rig{ display:flex; align-items:center; justify-content:center; gap:var(--gap,24px);
+      min-width:100%; min-height:100%; padding:22px; }
+body.bare #rig{ padding:0; }
+.cut{ position:relative; flex:0 0 auto; }
+.cut .frame{
+  position:relative; overflow:hidden; background:#000;
+  outline:2px solid var(--edge); outline-offset:0;
+}
+.cut iframe{ border:0; display:block; transform-origin:top left; }
+.cut .lab{
+  position:absolute; top:-22px; left:0; font-size:11px; letter-spacing:1px;
+  color:var(--dim); white-space:nowrap;
+}
+.cut .lab b{ color:var(--gold); }
+
+/* Bare mode is the one you actually record: no labels, no outlines, nothing
+   but the two graphics on a flat field of colour. */
+body.bare .cut .lab{ display:none; }
+body.bare .cut .frame{ outline:0; }
+body.bare #bar{ display:none; }
+body.bare{ background:var(--bg, #0d1f2d); }
+
+#bar{
+  position:fixed; left:0; right:0; bottom:0; z-index:10;
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  padding:9px 12px; background:rgba(7,20,32,.92); border-top:1px solid var(--edge);
+  font-size:12px;
+}
+#bar button, #bar select{
+  cursor:pointer; background:#183149; border:1px solid var(--edge); color:#eef4fa;
+  border-radius:6px; padding:6px 10px; font-family:'DM Mono',monospace; font-size:12px;
+}
+#bar button:hover{ border-color:var(--gold); }
+#bar .sp{ flex:1; }
+#bar .k{ color:var(--gold); }
+#note{ font-size:11px; color:var(--dim); }
+#unbare{
+  position:fixed; right:6px; bottom:6px; z-index:11; display:none; cursor:pointer;
+  background:rgba(7,20,32,.5); border:1px solid var(--edge); color:var(--dim);
+  font-family:'Press Start 2P',monospace; font-size:9px; padding:5px 7px; border-radius:4px;
+}
+body.bare #unbare{ display:block; }
+body.bare #unbare:hover{ color:var(--gold); border-color:var(--gold); }
+</style>
+</head>
+<body>
+
+<div id="rig">
+  <div class="cut" id="cutH">
+    <div class="lab">HORIZONTAL · <b id="labH"></b></div>
+    <div class="frame" id="frameH"><iframe id="fH" scrolling="no"></iframe></div>
+  </div>
+  <div class="cut" id="cutV">
+    <div class="lab">VERTICAL · <b id="labV"></b></div>
+    <div class="frame" id="frameV"><iframe id="fV" scrolling="no"></iframe></div>
+  </div>
+</div>
+
+<div id="bar">
+  <span class="k">BOTH CUTS</span>
+  <select id="hLayout">
+    <option value="full">16:9 full board</option>
+    <option value="lower">16:9 lower third</option>
+  </select>
+  <select id="scaleSel">
+    <option value="fit">Fit the window</option>
+    <option value="0.5">50%</option>
+    <option value="0.75">75%</option>
+    <option value="1">100% — native</option>
+  </select>
+  <button id="stackBtn">Side by side</button>
+  <button id="bareBtn">Hide the furniture</button>
+  <span class="sp"></span>
+  <span id="note"></span>
+</div>
+<button id="unbare">SHOW</button>
+
+<script src="gtd.js"></script>
+<script>
+'use strict';
+/* =====================================================================
+   BOTH CUTS AT ONCE
+
+   Two display pages side by side off one live game, so a single take gives
+   you the 16:9 edit and the 9:16 Short without playing it twice.
+
+   The frames are display.html at its true broadcast size — 1920x1080 and
+   1080x1920 — scaled down only to fit the window. Recording at a scale of
+   1 gives you native pixels; the crop rectangles are printed on the bar so
+   you can cut each one out of the capture exactly.
+
+   The frames themselves never talk to a relay. A page inside a frame skips
+   its subscription on purpose — otherwise this page would open two sets of
+   SSE streams for one game — so when a topic is given, this page does the
+   listening and hands what it hears to both frames over the browser
+   channel. With no topic it does nothing at all, because play.html is
+   already on that channel and the frames hear it directly.
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+const qs = new URLSearchParams(location.search);
+const TOPIC = (qs.get('topic') || '').trim();
+const H = { w:1920, h:1080 }, V = { w:1080, h:1920 };
+let hLayout = qs.get('h') || 'full';
+let stacked = qs.get('stack') === '1';
+
+$('hLayout').value = hLayout;
+if(qs.get('scale')) $('scaleSel').value = qs.get('scale');
+if(qs.get('bare') === '1') document.body.classList.add('bare');
+if(qs.get('bg')) document.body.style.setProperty('--bg', '#' + qs.get('bg').replace('#', ''));
+
+function srcFor(layout){
+  /* the frames get no topic — this page feeds them */
+  return 'display.html?layout=' + layout + '&_=' + Math.floor(Math.random() * 1e9);
+}
+function load(){
+  $('fH').src = srcFor(hLayout);
+  $('fV').src = srcFor('vert');
+}
+
+function fit(){
+  const bar = document.body.classList.contains('bare') ? 0 : 46;
+  const pad = document.body.classList.contains('bare') ? 0 : 40;
+  const availW = window.innerWidth - pad, availH = window.innerHeight - bar - pad;
+  const gap = document.body.classList.contains('bare') ? 0 : 24;
+  document.documentElement.style.setProperty('--gap', gap + 'px');
+
+  /* one scale for both, so the two cuts stay in the same proportion to each
+     other however the window is shaped */
+  const totalW = stacked ? Math.max(H.w, V.w) : H.w + V.w + gap;
+  const totalH = stacked ? H.h + V.h + gap : Math.max(H.h, V.h);
+  const want = $('scaleSel').value;
+  /* A window that is minimised or behind another reports a zero viewport,
+     which turns the fit into a negative scale and the readout into nonsense.
+     Never go below something that still draws. */
+  const k = Math.max(0.05, want === 'fit'
+    ? Math.min(availW / totalW, availH / totalH, 1)
+    : +want || 1);
+  document.body.classList.toggle('fitted', want === 'fit');
+
+  $('rig').style.flexDirection = stacked ? 'column' : 'row';
+  [[$('frameH'), $('fH'), H], [$('frameV'), $('fV'), V]].forEach(([frame, f, d]) => {
+    f.style.width = d.w + 'px'; f.style.height = d.h + 'px';
+    f.style.transform = 'scale(' + k + ')';
+    frame.style.width = Math.round(d.w * k) + 'px';
+    frame.style.height = Math.round(d.h * k) + 'px';
+  });
+  $('labH').textContent = H.w + '×' + H.h;
+  $('labV').textContent = V.w + '×' + V.h;
+
+  /* Called straight after a class change the rects are still mid-reflow and
+     come back as zeros, and these numbers are what somebody types into a crop
+     filter. So measure, and if it was too early, try again on a timer —
+     not requestAnimationFrame, which does not run at all in a window that
+     is behind another one. */
+  if(!measure(k, totalW, totalH)) setTimeout(() => measure(k, totalW, totalH), 60);
+}
+
+function measure(k, totalW, totalH){
+  const rh = $('frameH').getBoundingClientRect(), rv = $('frameV').getBoundingClientRect();
+  if(!rh.width || !rv.width) return false;
+  const r = n => Math.round(n);
+  const sx = window.scrollX, sy = window.scrollY;
+  $('note').innerHTML = 'scale ' + (k * 100).toFixed(0) + '% · this page is ' +
+    r(totalW * k + (document.body.classList.contains('bare') ? 0 : 44)) + '×' +
+    r(totalH * k + (document.body.classList.contains('bare') ? 0 : 44)) +
+    ' · crop 16:9 at <b>' + r(rh.left + sx) + ',' + r(rh.top + sy) + ' ' + r(rh.width) + '×' + r(rh.height) + '</b>' +
+    ' · crop 9:16 at <b>' + r(rv.left + sx) + ',' + r(rv.top + sy) + ' ' + r(rv.width) + '×' + r(rv.height) + '</b>';
+  return true;
+}
+addEventListener('resize', fit);
+addEventListener('scroll', () => { if(!document.body.classList.contains('fitted')) fit(); });
+
+$('hLayout').onchange = e => { hLayout = e.target.value; load(); fit(); };
+$('scaleSel').onchange = fit;
+$('stackBtn').onclick = () => {
+  stacked = !stacked;
+  $('stackBtn').textContent = stacked ? 'Stacked' : 'Side by side';
+  fit();
+};
+$('bareBtn').onclick = () => { document.body.classList.add('bare'); fit(); };
+$('unbare').onclick = () => { document.body.classList.remove('bare'); fit(); };
+addEventListener('keydown', e => {
+  if(e.key === 'Escape'){ document.body.classList.remove('bare'); fit(); }
+});
+
+/* ---------------------------------------------------------------
+   Feeding the frames
+   --------------------------------------------------------------- */
+let BC = null, latest = null, lastSeq = 0;
+try{
+  BC = new BroadcastChannel('going_the_distance');
+  BC.onmessage = ev => {
+    const d = ev.data;
+    if(d && d.__req){ if(latest){ try{ BC.postMessage(latest); }catch(e){} } return; }
+    if(d) latest = d;                       /* so a frame that reloads can ask */
+  };
+}catch(e){}
+
+if(TOPIC){
+  /* One subscription for both cuts. Same relay handling as display.html:
+     first copy wins, dropped by sequence number, and nothing polls on a
+     schedule. */
+  const LINK = GTD.RELAYS.map(r => Object.assign({}, r, { es:null, lastMsgAt:Date.now(), since:Math.floor(Date.now() / 1000) }));
+  const feed = raw => {
+    let st; try{ st = JSON.parse(raw); }catch(e){ return; }
+    if(!st || typeof st !== 'object') return;
+    const n = +st.n || 0;
+    if(n && n <= lastSeq) return;
+    if(n) lastSeq = n;
+    latest = st;
+    if(BC){ try{ BC.postMessage(st); }catch(e){} }
+  };
+  const envelope = (l, env) => { l.lastMsgAt = Date.now(); if(env && env.message) feed(env.message); };
+  const connect = l => {
+    if(l.es) l.es.close();
+    l.es = new EventSource('https://' + l.host + '/' + encodeURIComponent(TOPIC) + '/sse');
+    l.es.onmessage = ev => { try{ envelope(l, JSON.parse(ev.data)); }catch(e){} };
+    l.es.onopen = () => { l.lastMsgAt = Date.now(); };
+  };
+  const pollOnce = async l => {
+    const from = l.since; l.since = Math.floor(Date.now() / 1000);
+    try{
+      const res = await fetch('https://' + l.host + '/' + encodeURIComponent(TOPIC) + '/json?poll=1&since=' + from);
+      if(res.status === 429) return;
+      (await res.text()).split('\n').filter(Boolean).forEach(line => { try{ envelope(l, JSON.parse(line)); }catch(e){} });
+    }catch(e){}
+  };
+  LINK.forEach(connect);
+  setInterval(() => {
+    LINK.forEach(l => {
+      const quiet = Date.now() - l.lastMsgAt;
+      if(quiet > 95000){ connect(l); l.lastMsgAt = Date.now(); pollOnce(l); }
+      else if(quiet > 60000){ pollOnce(l); }
+    });
+  }, 15000);
+  /* opened mid-show, come up where the show is */
+  LINK.forEach(async l => {
+    try{
+      const res = await fetch('https://' + l.host + '/' + encodeURIComponent(TOPIC) + '/json?poll=1&since=6h');
+      const lines = (await res.text()).split('\n').filter(Boolean);
+      if(!lines.length) return;
+      const last = JSON.parse(lines[lines.length - 1]);
+      if(last && last.message) feed(last.message);
+    }catch(e){}
+  });
+}
+
+load();
+fit();
+setTimeout(fit, 400);
+</script>
+</body>
+</html>
