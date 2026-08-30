@@ -36,7 +36,7 @@ function create(hooks){
     tmd:{ len:120, endsAt:0, remain:120, running:false, plays:0 },
     sd:{ streak:0, best:0, bestYards:0, alive:true },
     wg:{ wager:10 },
-    outcome:null,
+    outcome:null, lastKind:null,
     q:null, qnum:0, used:{},
     drive:{ los:1, down:1, dist:10, first:11, score:0, ll:{ pi:true, to:true, cc:true }, safe:1, marks:[25, 50, 80] },
     h2h:{ ball:50, poss:0, step:5, bonus:false, target:55,
@@ -78,10 +78,11 @@ function create(hooks){
   function serve(){
     if(SOLO.includes(S.mode) && (S.needNewDrive || S.drive.los >= 100)) newDrive(true);
     if(S.mode === 'sudden' && !S.sd.alive){ log('run is over — hit New attempt'); return; }
-    const q = GTD.draw({ diff:wantedDiff(), eras:S.filters.eras }, S.used);
+    const q = GTD.draw({ diff:wantedDiff(), eras:S.filters.eras, avoidKind:S.lastKind }, S.used);
     if(!q){ log('<span class="bad">nothing left in the bank for that filter</span>'); return; }
     S.used[q.id] = 1;
-    S.q = { id:q.id, tier:q.diff, era:q.era, text:q.text, choices:q.choices, correct:q.correct,
+    S.lastKind = q.kind;          /* so the next one is a different sort of question */
+    S.q = { id:q.id, tier:q.diff, era:q.era, kind:q.kind, text:q.text, choices:q.choices, correct:q.correct,
             cite:q.cite, lock:-1, reveal:false, gone:[], num:++S.qnum,
             wager:S.mode === 'wager' ? S.wg.wager : 0 };
     S.play = null; S.banner = { on:false, text:'', bad:false };

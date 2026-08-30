@@ -140,10 +140,23 @@ filter unplayable at the easy setting. Every era × difficulty pair has at least
 it, and the control page prints a live count of what the current filter can still serve — a filter
 that has quietly run dry is something to find out about before you're on camera.
 
-When the bank does run thin, the game **gives up difficulty before it gives up the era**: the era
-is your deliberate creative choice, so it widens to the next difficulty first, then allows
-repeats, and only a completely empty era falls back to the whole bank. It never comes up empty
-mid-show.
+**The same shape never comes round twice in a row.** A third of the bank is MVP questions — the
+generated ones come off the MVP tables — so a straight random draw puts two together constantly,
+and on air that reads as the game running out of ideas. Every question is tagged with its shape
+(*MVP*, *who won the Super Bowl*, *who they beat*, *first overall pick*) and the next one is
+served from a different one. Miscellaneous questions are exempt, because two unrelated questions
+in a row is just a quiz.
+
+When the bank runs thin, four things are in tension and they get given up in this order:
+
+1. **the era** — your deliberate creative choice, given up last
+2. **never repeat a question** — the worst thing to serve twice
+3. **the shape gap** — two MVPs in a row beats repeating a question
+4. **the difficulty** — the cheapest thing to bend, given up first
+
+So it widens the difficulty first, then allows the repeated shape, and only once nothing fresh is
+left anywhere in the era does it start repeating questions. It never comes up empty mid-show —
+tested across every era × difficulty pair, 40 draws each.
 
 ## The games
 
