@@ -353,6 +353,17 @@ Every question points at one of these, and the key lives in `SOURCES` at the top
 
 ---
 
+## Deploying a change
+
+The shared modules are loaded with a version string — `gtd.js?v=2026-08-26a` — and **it has to be
+bumped when you change one**. Without it a browser that has been here before keeps running the
+code it already has: a phone, or worse an OBS browser source that has been open since the last
+show, quietly running a bug you already fixed. One command from the repo root:
+
+```bash
+sed -i '' 's/?v=[0-9a-z-]*/?v=NEW-VERSION/g' *.html
+```
+
 ## How the sync works
 
 Same pattern as the Trade Deadline and Savant pages, with the lessons already applied:
