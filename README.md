@@ -33,7 +33,13 @@ ntfy, exactly as before.
 
 ### Recording a clean output while you play
 
-**RECORD** on the play page opens a second window with **just the graphic in it** — no buttons, no
+**SET UP RECORDING** sits on the setup screen, before you kick off — point OBS and copy the URL
+first, then play. While you're on that screen the output shows a **holding card** (the title plate
+over an empty field, naming the game you've picked) rather than a bare field, so you can see the
+source is live before anything has happened. It clears the moment you kick off.
+
+The same panel is on **◉ RECORD** in-game. Either way it opens a second window with
+**just the graphic in it** — no buttons, no
 setup screen — mirroring the game as you play. Point a screen recorder at that window, or capture
 it in OBS as a window capture. It follows this browser automatically over a BroadcastChannel:
 no topic, nothing to connect. Open it mid-round and it asks for the current state, so it comes up

@@ -168,6 +168,9 @@ body.play.hidechrome #unclean:hover{ border-color:var(--gold); color:var(--gold)
     <div class="chips" id="eraChips"></div>
 
     <button class="go" id="startBtn">KICK OFF</button>
+    <div class="rowbtns" style="margin-top:10px">
+      <button class="ghost" id="setupRecBtn">◉ SET UP RECORDING</button>
+    </div>
     <div class="warnline" id="setupWarn"></div>
     <div class="foot">
       <span id="poolLine"></span><br>
@@ -226,7 +229,7 @@ body.play.hidechrome #unclean:hover{ border-color:var(--gold); color:var(--gold)
       </div>
     </div>
 
-    <button class="go" id="recDone">BACK TO THE GAME</button>
+    <button class="go" id="recDone">BACK</button>
   </div>
 </div>
 
@@ -300,8 +303,15 @@ const G = GTDGame.create({
 });
 const S = G.S;
 
+/* Set up before you play and a source is pointed at a game that has not
+   started. An empty field looks like a fault; the title plate looks like a
+   holding card, which is what it is. */
+let idleCard = true;
 function paint(){
-  const state = G.snapshot({ layout:view.layout(), card:'l', showQ:true, showClock:true });
+  const state = G.snapshot({
+    layout:view.layout(), card:'l',
+    showQ:!idleCard, showClock:!idleCard, showPlate:idleCard
+  });
   view.apply(state);
   /* the mirror wants the broadcast shape, not this page's centred one */
   SYNC.send(Object.assign({}, state, { layout:recLayout, card:'m' }));
@@ -368,6 +378,7 @@ function paintSetup(){
     ? "That's a thin bank. It'll widen the difficulty rather than run out, but you'll see repeats."
     : '';
   try{ localStorage.setItem('gtd_play', JSON.stringify(pick)); }catch(e){}
+  if(idleCard){ S.plate.sub = modeLabel(); paint(); }
 }
 
 /* the editor's questions play here too */
@@ -395,7 +406,7 @@ function start(){
   G.setMode(pick.mode);
   if(pick.mode === '2min'){ G.tmdReset(120); G.tmdStart(); }
   S.clockDur = pick.mode === '2min' ? 10 : 20;
-  roundLive = true;
+  roundLive = true; idleCard = false;
   show(null);
   tip(pick.mode === 'wager' ? 'call your yardage, then answer' : 'tap your answer');
   next();
@@ -477,6 +488,11 @@ function askWager(){
 }
 
 function tip(t){ $('tip').textContent = t || ''; }
+function modeLabel(){ return (MODES.find(m => m[0] === pick.mode) || [])[1] || ''; }
+function eraLabel(){
+  return pick.eras.length === GTD.ERAS.length ? 'every era'
+    : pick.eras.map(e => (GTD.ERAS.find(x => x[0] === e) || [])[1]).join(', ');
+}
 
 /* =====================================================================
    RESULT
@@ -521,9 +537,7 @@ function finish(){
     d.innerHTML = '<div class="k">' + k + '</div><div class="v">' + v + '</div>';
     host.appendChild(d);
   });
-  const label = (MODES.find(m => m[0] === pick.mode) || [])[1] || '';
-  const eras = pick.eras.length === GTD.ERAS.length ? 'every era'
-    : pick.eras.map(e => (GTD.ERAS.find(x => x[0] === e) || [])[1]).join(', ');
+  const label = modeLabel(), eras = eraLabel();
   $('resFoot').textContent = label + ' · ' +
     ({ ladder:'ladder', 1:'easy', 2:'medium', 3:'hard' }[pick.diff] || pick.diff) + ' · ' + eras;
   show('result');
@@ -569,6 +583,13 @@ function paintTopicState(){
   const on = SYNC.relays.filter(r => r.on).length;
   $('topicState').textContent = 'publishing to ' + t + ' · ' + SYNC.sent() + ' sent · ' + up + '/' + on + ' relays up';
 }
+let recFrom = 'setup';
+function openRec(from){
+  recFrom = from;
+  $('recDone').textContent = from === 'setup' ? 'BACK' : 'BACK TO THE GAME';
+  paintCap(); paintRec(); paintTopicState();
+  show('record');
+}
 function paintCap(){
   const host = $('capChips'); host.innerHTML = '';
   [['window', 'A WINDOW ON THIS COMPUTER'], ['obs', 'AN OBS BROWSER SOURCE']].forEach(([k, t]) => {
@@ -582,8 +603,9 @@ function paintCap(){
   $('capObs').style.display = capMode === 'obs' ? '' : 'none';
   $('obsUrl').textContent = obsURL();
 }
-$('recBtn').onclick = () => { paintCap(); paintRec(); paintTopicState(); show('record'); };
-$('recDone').onclick = () => show(null);
+$('recBtn').onclick = () => openRec('game');
+$('setupRecBtn').onclick = () => openRec('setup');
+$('recDone').onclick = () => { if(recFrom === 'setup'){ paintSetup(); show('setup'); } else show(null); };
 $('openMirror').onclick = () => {
   const size = REC_SIZES[recLayout] || REC_SIZES.lower;
   mirrorWin = window.open(mirrorURL(), 'gtd-clean', 'width=' + size[0] + ',height=' + size[1]);
@@ -658,9 +680,9 @@ $('unclean').onclick = () => setChrome(true);
 
 $('startBtn').onclick = start;
 $('againBtn').onclick = start;
-$('changeBtn').onclick = () => { roundLive = false; clearTimeout(beat); paintSetup(); show('setup'); };
+$('changeBtn').onclick = () => { roundLive = false; idleCard = true; clearTimeout(beat); paintSetup(); show('setup'); };
 $('quitBtn').onclick = () => {
-  roundLive = false; clearTimeout(beat); clearTimeout(timeoutTimer);
+  roundLive = false; idleCard = true; clearTimeout(beat); clearTimeout(timeoutTimer);
   document.body.classList.remove('roundover');
   paintSetup(); show('setup');
 };
