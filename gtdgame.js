@@ -500,6 +500,7 @@ function create(hooks){
     if(m === '2min'){ S.drive.los = 20; S.tmd.plays = 0; S.clockDur = Math.min(S.clockDur, 10); }
     else if(m === 'sudden'){ S.drive.los = 1; S.sd.streak = 0; S.sd.alive = true; }
     else if(m === 'wager'){ S.drive.los = 20; }
+    else S.drive.los = 1;                 /* the drive starts on your own 1, always */
     S.drive.down = 1; S.drive.dist = 10; S.drive.first = Math.min(110, S.drive.los + 10);
     S.drive.marks = m === 'drive' ? [25, 50, 80] : [];
     S.needNewDrive = false;

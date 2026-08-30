@@ -5,6 +5,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Going the Distance — Display</title>
 <link rel="stylesheet" href="gtd.css">
+<style>
+/* A source that is not receiving looks exactly like a source that is
+   waiting for the first play — a title card over an empty field. In OBS the
+   diagnostic line is hidden, so a wrong URL fails completely silently. This
+   says what is wrong, and gets out of the way the moment state arrives. */
+#standby{
+  position:fixed; inset:0; z-index:60; display:none;
+  align-items:center; justify-content:center; padding:5vh 5vw;
+  background:rgba(7,20,32,.93);
+}
+#standby.on{ display:flex; }
+#standby .sb{ max-width:760px; text-align:center; }
+#standby .h{
+  font-family:'Press Start 2P', monospace; font-size:clamp(16px,2.4vw,30px);
+  color:#fbcc7a; line-height:1.5; margin-bottom:18px;
+}
+#standby .b{
+  font-family:'DM Sans', Arial, sans-serif; font-size:clamp(13px,1.5vw,19px);
+  color:#cfe0ef; line-height:1.65;
+}
+#standby .b code{
+  font-family:'DM Mono', monospace; background:#0d2032; border:1px solid #22415c;
+  padding:1px 6px; color:#fbcc7a; word-break:break-all;
+}
+</style>
 </head>
 <body class="lay-lower clean">
 
@@ -37,6 +62,10 @@
 <div id="soundzone" class="hide">
   <b>SOUND</b> — drop your clips here<br><span id="szList">chiptune fallback</span>
 </div>
+<div id="standby"><div class="sb">
+  <div class="h" id="sbHead">WAITING</div>
+  <div class="b" id="sbBody"></div>
+</div></div>
 <div id="diag">booting…</div>
 
 <script src="gtd.js"></script>
@@ -107,12 +136,14 @@ const RELAYS = (() => {
 const LINK = RELAYS.map(r => ({ ...r, es:null, lastMsgAt:Date.now(), since:Math.floor(Date.now() / 1000) }));
 let lastSeq = 0;
 
+function escapeHTML(t){ return String(t).replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c])); }
 function relayStatus(){
   if(SNAP) return;
   const up = LINK.filter(l => l.es && l.es.readyState === 1).length;
   view.diag(view.layout() + ' · ' + up + '/' + LINK.length + ' relays');
 }
 
+let everReceived = false;
 function accept(raw){
   let st;
   try{ st = JSON.parse(raw); }catch(e){ return; }
@@ -120,7 +151,18 @@ function accept(raw){
   const n = +st.n || 0;
   if(n && n <= lastSeq) return;      /* duplicate copy, or a slow relay with stale state */
   if(n) lastSeq = n;
+  everReceived = true;
+  $('standby').classList.remove('on');
   try{ view.apply(st); }catch(e){ view.diag('render: ' + e.message); }
+}
+
+/* Only ever shown before the first state arrives. Once a show is running, a
+   warning plate over the graphic would be worse than a frozen graphic. */
+function standby(head, body){
+  if(everReceived || IN_FRAME) return;
+  $('sbHead').textContent = head;
+  $('sbBody').innerHTML = body;
+  $('standby').classList.add('on');
 }
 function envelope(l, env){ l.lastMsgAt = Date.now(); if(env && env.message) accept(env.message); }
 
@@ -201,10 +243,25 @@ if(IN_FRAME){
         if(last && last.message) accept(last.message);
       }catch(e){}
     });
+    /* If a topic is set and nothing has come in, the two sides are almost
+       always on different topics, or the other page was never connected. */
+    setTimeout(() => standby('NOTHING COMING IN',
+      'Listening on <code>' + escapeHTML(TOPIC) + '</code> but nothing has arrived.<br><br>' +
+      'Check the page driving it is connected to the <b>same topic</b> — on the control page that is ' +
+      '<b>Connect</b>, and on the play page it is <b>RECORD → START PUBLISHING</b>.'), 7000);
   } else if(!hadSnap){
-    /* no topic is normal for a mirror window next to play.html — it is
-       listening on the channel, not on a relay */
+    /* No topic at all. In this browser that is a mirror window and perfectly
+       normal — it is fed on the channel and fills in within a second. In OBS
+       it is the mistake everybody makes, because a browser source is its own
+       browser and cannot hear the channel, so it just sits there looking
+       like it is working. */
     view.diag('mirroring this browser');
+    setTimeout(() => standby('THIS URL HAS NO TOPIC IN IT',
+      'It works as a window on the same computer, but an <b>OBS browser source is its own ' +
+      'browser</b> and can only listen on a topic.<br><br>' +
+      'Use the URL with <code>?topic=</code> in it — on the play page that is ' +
+      '<b>RECORD → for OBS → COPY THE OBS URL</b>, and on the control page it is ' +
+      '<b>Copy Display URL</b>.'), 6000);
   }
 }
 </script>

@@ -47,9 +47,18 @@ for a plain screen recording.
 **⛶ HIDE THIS** does the other version of the same idea: strips the buttons off the play page
 itself so you can record that window directly. Escape brings them back.
 
-**For OBS on another machine**, a browser source is its own browser and can't hear the channel — so
-the same panel takes a topic and publishes to the relays exactly like the host panel does. One
-person can run the whole bit: play on the laptop, clean graphic in OBS.
+**For OBS**, a browser source is its own browser and can't hear the channel — so the panel asks
+what you're capturing with, and picking OBS takes a topic and publishes to the relays exactly like
+the host panel does. It shows you the full URL, with `?topic=` in it, and **CHECK IT LANDED** asks
+the relay whether the state is really sitting there so you get a yes or a no instead of a guess.
+One person can run the whole bit: play on the laptop, clean graphic in OBS.
+
+**If a display source is blank, it now tells you why.** A URL with no topic in it used to render a
+title card over an empty field and simply never update — indistinguishable from working, and the
+diagnostic line is hidden in OBS. It now says `THIS URL HAS NO TOPIC IN IT` and where to get the
+right one; with a topic but no traffic it says nothing has arrived and what to check. It only ever
+shows before the first state arrives — mid-show a warning plate over the graphic would be worse
+than a frozen graphic.
 
 Both run **the same rules off the same code**. `gtdgame.js` holds every game rule and touches no
 DOM; `gtdview.js` holds the renderer. `gtdsync.js` holds the transport. `play.html` wires all three together,

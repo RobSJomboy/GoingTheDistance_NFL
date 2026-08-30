@@ -186,29 +186,44 @@ body.play.hidechrome #unclean:hover{ border-color:var(--gold); color:var(--gold)
       that mirrors this game as you play. Point a screen recorder at that window, or capture it in
       OBS as a window capture.</p>
 
+    <h3>WHAT ARE YOU CAPTURING WITH?</h3>
+    <div class="chips" id="capChips"></div>
+
     <h3>SHAPE</h3>
     <div class="chips" id="recLayout"></div>
     <p class="foot" id="shapeNote"></p>
 
-    <div class="rowbtns" style="margin-top:22px">
-      <button class="go" id="openMirror" style="margin-top:0">OPEN THE CLEAN WINDOW</button>
-      <button class="ghost" id="copyMirror">COPY THE LINK</button>
+    <div id="capWindow">
+      <div class="rowbtns" style="margin-top:22px">
+        <button class="go" id="openMirror" style="margin-top:0">OPEN THE CLEAN WINDOW</button>
+        <button class="ghost" id="copyMirror">COPY THE LINK</button>
+      </div>
+      <p class="foot">The window follows this one automatically — same browser, no topic, nothing
+        to connect. Leave it open on a second screen and play here.<br>
+        <b style="color:#ff9a92">This link only works as a window on this computer.</b>
+        A browser source can't see it — switch to OBS above for that.</p>
     </div>
-    <p class="foot">The window follows this one automatically — same browser, no topic, nothing to
-      connect. Leave it open on a second screen and play here.</p>
 
-    <h3>OBS ON ANOTHER MACHINE</h3>
-    <p class="sub" style="font-size:14px">A browser source is its own browser, so it can't see the
-      window above. Give it a topic and this page will publish to the relays like the host panel
-      does.</p>
-    <div class="rowbtns" style="margin-top:12px">
-      <input id="recTopic" placeholder="topic name, with a random tail"
-             style="flex:2; min-width:220px; background:#0f2740; border:2px solid var(--edge); color:var(--ink); padding:14px; font-family:var(--disp); font-size:22px;">
-      <button class="ghost" id="topicGo">START PUBLISHING</button>
-    </div>
-    <p class="foot" id="topicState">not publishing · nothing leaves this browser</p>
-    <div class="rowbtns" style="margin-top:8px">
-      <button class="ghost" id="copyObs" disabled>COPY THE OBS URL</button>
+    <div id="capObs" style="display:none">
+      <p class="sub" style="font-size:14px; margin-top:20px">An OBS browser source is its own
+        browser, so it can't hear this one. Give it a topic and this page publishes to the relays
+        exactly like the host panel does.</p>
+      <div class="rowbtns" style="margin-top:12px">
+        <input id="recTopic" placeholder="topic name, with a random tail"
+               style="flex:2; min-width:220px; background:#0f2740; border:2px solid var(--edge); color:var(--ink); padding:14px; font-family:var(--disp); font-size:22px;">
+        <button class="go" id="topicGo" style="margin-top:0; flex:1">START PUBLISHING</button>
+      </div>
+      <p class="foot" id="topicState">not publishing · nothing leaves this browser</p>
+      <div id="obsUrlBox" style="display:none; margin-top:14px">
+        <div class="foot" style="margin:0 0 6px">Paste this into the OBS browser source:</div>
+        <div id="obsUrl" style="font-family:'DM Mono',monospace; font-size:13px; color:#fbcc7a;
+             background:#0d2032; border:2px solid var(--edge); padding:12px; word-break:break-all;"></div>
+        <div class="rowbtns" style="margin-top:10px">
+          <button class="ghost" id="copyObs">COPY THE OBS URL</button>
+          <button class="ghost" id="checkObs">CHECK IT LANDED</button>
+        </div>
+        <p class="foot" id="checkState"></p>
+      </div>
     </div>
 
     <button class="go" id="recDone">BACK TO THE GAME</button>
@@ -275,6 +290,7 @@ const SYNC = GTDSync.create({
   onStatus:paintTopicState
 });
 let recLayout = localStorage.getItem('gtd_reclayout') || 'full';
+let capMode = localStorage.getItem('gtd_capmode') || 'window';
 let mirrorWin = null;
 
 const G = GTDGame.create({
@@ -532,6 +548,7 @@ function paintRec(){
       recLayout = k;
       try{ localStorage.setItem('gtd_reclayout', k); }catch(e){}
       paintRec(); paint();
+      $('obsUrl').textContent = obsURL();
       if(mirrorWin && !mirrorWin.closed) mirrorWin.location.replace(mirrorURL());
     };
     host.appendChild(b);
@@ -552,7 +569,20 @@ function paintTopicState(){
   const on = SYNC.relays.filter(r => r.on).length;
   $('topicState').textContent = 'publishing to ' + t + ' · ' + SYNC.sent() + ' sent · ' + up + '/' + on + ' relays up';
 }
-$('recBtn').onclick = () => { paintRec(); paintTopicState(); show('record'); };
+function paintCap(){
+  const host = $('capChips'); host.innerHTML = '';
+  [['window', 'A WINDOW ON THIS COMPUTER'], ['obs', 'AN OBS BROWSER SOURCE']].forEach(([k, t]) => {
+    const b = document.createElement('div');
+    b.className = 'chip' + (capMode === k ? ' on' : '');
+    b.textContent = t;
+    b.onclick = () => { capMode = k; try{ localStorage.setItem('gtd_capmode', k); }catch(e){} paintCap(); };
+    host.appendChild(b);
+  });
+  $('capWindow').style.display = capMode === 'window' ? '' : 'none';
+  $('capObs').style.display = capMode === 'obs' ? '' : 'none';
+  $('obsUrl').textContent = obsURL();
+}
+$('recBtn').onclick = () => { paintCap(); paintRec(); paintTopicState(); show('record'); };
 $('recDone').onclick = () => show(null);
 $('openMirror').onclick = () => {
   const size = REC_SIZES[recLayout] || REC_SIZES.lower;
@@ -580,10 +610,35 @@ $('topicGo').onclick = () => {
   if(!t){ alert('Give it a topic name first — anything, with a random tail so nobody else lands on it.'); return; }
   SYNC.setTopic(t);
   try{ localStorage.setItem('gtd_playtopic', t); }catch(e){}
-  $('copyObs').disabled = false;
   paint();
+  $('obsUrlBox').style.display = '';
+  $('obsUrl').textContent = obsURL();
   paintTopicState();
+  setTimeout(checkRelay, 1200);
 };
+
+/* "It doesn't seem to be working" is the worst bug report to get and the
+   easiest to prevent: ask the relay whether the state is actually sitting
+   there, and say so either way. */
+function checkRelay(){
+  const t = SYNC.topic();
+  if(!t) return;
+  $('checkState').textContent = 'checking the relay…';
+  $('checkState').style.color = '';
+  fetch('https://ntfy.sh/' + encodeURIComponent(t) + '/json?poll=1&since=10m')
+    .then(r => r.text())
+    .then(txt => {
+      const lines = txt.split('\n').filter(Boolean);
+      if(!lines.length) throw new Error('empty');
+      $('checkState').innerHTML = '<b style="color:#8ff0b4">Confirmed — the relay has this game.</b> ' +
+        'If OBS is still blank, the source URL is wrong: it must be the one above, with <b>?topic=</b> in it.';
+    })
+    .catch(() => {
+      $('checkState').innerHTML = '<b style="color:#ff9a92">Nothing on the relay yet.</b> ' +
+        'Play a question — the state only goes out when something on screen changes.';
+    });
+}
+$('checkObs').onclick = checkRelay;
 $('copyObs').onclick = () => {
   const u = obsURL();
   navigator.clipboard.writeText(u).then(() => {
