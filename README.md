@@ -372,6 +372,12 @@ show, quietly running a bug you already fixed. One command from the repo root:
 sed -i '' 's/?v=[0-9a-z-]*/?v=NEW-VERSION/g' *.html
 ```
 
+That covers the modules. **The HTML pages cache too**, and the version string can't fix that — a
+browser holding an old `play.html` is still asking for the old module URL. GitHub Pages caps that
+at about ten minutes, so a normal tab sorts itself out; an **OBS browser source will not**, because
+it caches hard until told otherwise. After a deploy, right-click the source → **Refresh cache of
+current page**. Worth doing before a taping as a matter of habit.
+
 ## How the sync works
 
 Same pattern as the Trade Deadline and Savant pages, with the lessons already applied:
